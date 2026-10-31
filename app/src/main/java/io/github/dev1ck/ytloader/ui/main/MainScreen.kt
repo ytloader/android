@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
@@ -103,6 +104,7 @@ import io.github.dev1ck.ytloader.download.SavedFile
 import io.github.dev1ck.ytloader.download.ShareRules
 import io.github.dev1ck.ytloader.download.TitlePreview
 import io.github.dev1ck.ytloader.login.LoginState
+import io.github.dev1ck.ytloader.update.AppUpdateState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -154,6 +156,7 @@ fun MainScreen(
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
+            AppUpdateBanner(state, viewModel)
             UrlSection(state, viewModel)
             ModeSelector(state, viewModel)
             ChipSection(
@@ -178,6 +181,61 @@ fun MainScreen(
 
     if (showSettings) SettingsSheet(state, viewModel, onDismiss = { showSettings = false })
     Dialogs(state, viewModel)
+}
+
+// ---- 앱 업데이트 (FR-15) ----
+
+@Composable
+private fun AppUpdateBanner(state: MainUiState, viewModel: MainViewModel) {
+    val update = state.appUpdate
+    val release = when (update) {
+        is AppUpdateState.Available -> update.release
+        is AppUpdateState.Downloading -> update.release
+        is AppUpdateState.Installing -> update.release
+        is AppUpdateState.Failed -> update.release
+        AppUpdateState.None, AppUpdateState.Dismissed -> return
+    }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Refresh, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.app_update_available, release.version),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.weight(1f),
+                )
+                if (!state.appUpdateInProgress) {
+                    IconButton(onClick = viewModel::dismissAppUpdate) { Icon(Icons.Filled.Close, stringResource(R.string.close)) }
+                }
+            }
+            Column(Modifier.padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (update) {
+                    is AppUpdateState.Downloading -> {
+                        InfoLine(stringResource(R.string.app_update_downloading, ((update.progress ?: 0f) * 100).toInt()))
+                        val progress = update.progress
+                        if (progress != null) LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+                        else LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    is AppUpdateState.Installing -> {
+                        InfoLine(stringResource(R.string.app_update_installing))
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    else -> {
+                        InfoLine(if (update is AppUpdateState.Failed) update.message else stringResource(R.string.app_update_desc))
+                        Button(onClick = viewModel::startAppUpdate, enabled = !state.busy) {
+                            Text(stringResource(if (update is AppUpdateState.Failed) R.string.app_update_retry else R.string.app_update_button))
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // ---- 입력 ----

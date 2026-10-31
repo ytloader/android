@@ -17,6 +17,7 @@ class YTLoaderApp : Application() {
         container.appScope.launch(Dispatchers.IO) {
             // 프로세스가 막 시작됐으므로 서비스는 돌고 있지 않다 → 지난 작업 폴더를 정리한다.
             container.workRoot.deleteRecursively()
+            container.appUpdater.clearDownloads()
             try {
                 container.engine.init()
                 // 내장 yt-dlp는 라이브러리 출시 시점 버전이라 오래됐다. 처음 한 번은 최신으로 받는다.

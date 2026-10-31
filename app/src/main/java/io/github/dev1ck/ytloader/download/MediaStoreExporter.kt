@@ -21,11 +21,13 @@ abstract class Exporter(protected val context: Context) {
         .map { file ->
             val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase())
                 ?: "application/octet-stream"
-            exportOne(file, file.parentFile!!.relativeTo(workDir).path, mime)
+            val subDir = ExportRules.normalizedName(file.parentFile!!.relativeTo(workDir).path)
+            exportOne(file, ExportRules.normalizedName(file.name), subDir, mime)
         }
         .toList()
 
-    protected abstract fun exportOne(file: File, subDir: String, mime: String): SavedFile
+    /** [name]·[subDir]는 완성형으로 정규화된 저장 이름 ([ExportRules.normalizedName]). */
+    protected abstract fun exportOne(file: File, name: String, subDir: String, mime: String): SavedFile
 
     // 같은 이름이 있으면 MediaStore·문서 제공자가 ` (1)`을 붙이므로 실제 이름을 다시 읽는다.
     protected fun displayName(uri: Uri): String? =
@@ -43,26 +45,26 @@ abstract class Exporter(protected val context: Context) {
 /** 기본 위치: 공용 Download/YTLoader/<하위 경로>. */
 class MediaStoreExporter(context: Context) : Exporter(context) {
 
-    override fun exportOne(file: File, subDir: String, mime: String): SavedFile {
+    override fun exportOne(file: File, name: String, subDir: String, mime: String): SavedFile {
         val relativePath = if (subDir.isEmpty()) "$ROOT/" else "$ROOT/$subDir/"
         val values = ContentValues().apply {
-            put(MediaStore.Downloads.DISPLAY_NAME, file.name)
+            put(MediaStore.Downloads.DISPLAY_NAME, name)
             put(MediaStore.Downloads.MIME_TYPE, mime)
             put(MediaStore.Downloads.RELATIVE_PATH, relativePath)
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        val uri = resolver.insert(collection, values) ?: throw IOException("MediaStore insert failed: ${file.name}")
+        val uri = resolver.insert(collection, values) ?: throw IOException("MediaStore insert failed: $name")
         try {
             resolver.openOutputStream(uri)?.use { out -> file.inputStream().use { it.copyTo(out) } }
-                ?: throw IOException("cannot open output: ${file.name}")
+                ?: throw IOException("cannot open output: $name")
             resolver.update(uri, ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }, null, null)
         } catch (e: Exception) {
             resolver.delete(uri, null, null)
             throw if (e is IOException) e else IOException(e)
         }
-        return SavedFile(uri, displayName(uri) ?: file.name, file.length(), mime, subDir, folder = null)
+        return SavedFile(uri, displayName(uri) ?: name, file.length(), mime, subDir, folder = null)
     }
 
     companion object {
@@ -75,18 +77,18 @@ class DocumentTreeExporter(context: Context, private val tree: Uri) : Exporter(c
     private val resolver get() = context.contentResolver
     private val root by lazy { DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree)) }
 
-    override fun exportOne(file: File, subDir: String, mime: String): SavedFile {
+    override fun exportOne(file: File, name: String, subDir: String, mime: String): SavedFile {
         val parent = subDir.split('/').filter { it.isNotEmpty() }.fold(root, ::childDirectory)
-        val uri = DocumentsContract.createDocument(resolver, parent, mime, file.name)
-            ?: throw IOException("cannot create document: ${file.name}")
+        val uri = DocumentsContract.createDocument(resolver, parent, mime, name)
+            ?: throw IOException("cannot create document: $name")
         try {
             resolver.openOutputStream(uri)?.use { out -> file.inputStream().use { it.copyTo(out) } }
-                ?: throw IOException("cannot open output: ${file.name}")
+                ?: throw IOException("cannot open output: $name")
         } catch (e: Exception) {
             runCatching { DocumentsContract.deleteDocument(resolver, uri) }
             throw if (e is IOException) e else IOException(e)
         }
-        return SavedFile(uri, displayName(uri) ?: file.name, file.length(), mime, subDir, folder = tree.toString())
+        return SavedFile(uri, displayName(uri) ?: name, file.length(), mime, subDir, folder = tree.toString())
     }
 
     /** [dir] 아래 [name] 폴더. 이미 있으면 그대로 쓴다 (기본 위치와 같이 같은 재생목록은 한 폴더에 모인다). */

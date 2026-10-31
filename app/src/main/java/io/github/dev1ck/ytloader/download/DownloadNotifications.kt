@@ -58,6 +58,18 @@ class DownloadNotifications(private val context: Context) {
     fun showFailed(text: String, saved: List<SavedFile> = emptyList()) =
         post(ID_RESULT, result(context.getString(R.string.notification_failed_title), text, openAppIntent(), saved))
 
+    /** 앱 자체 업데이트 후 첫 신호(MY_PACKAGE_REPLACED). 조용히 설치되면 앱이 닫히므로 다시 열 수 있게 한다. */
+    fun showAppUpdated(version: String) = post(
+        ID_APP_UPDATE,
+        NotificationCompat.Builder(context, CHANNEL_RESULT)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle(context.getString(R.string.app_update_done_title))
+            .setContentText(context.getString(R.string.app_update_done_text, version))
+            .setAutoCancel(true)
+            .setContentIntent(openAppIntent())
+            .build(),
+    )
+
     private fun savedLocation(files: List<SavedFile>) =
         FileActions.locationLabel(files.firstOrNull()?.folder, ShareRules.commonSubDir(files.map { it.subDir }))
 
@@ -109,6 +121,7 @@ class DownloadNotifications(private val context: Context) {
         const val CHANNEL_RESULT = "download_result"
         const val ID_PROGRESS = 1
         const val ID_RESULT = 2
+        const val ID_APP_UPDATE = 3
         private const val REQ_OPEN = 0
         private const val REQ_CANCEL = 1
         private const val REQ_VIEW = 2

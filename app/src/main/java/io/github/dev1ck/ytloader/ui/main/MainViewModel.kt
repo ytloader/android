@@ -3,10 +3,12 @@ package io.github.dev1ck.ytloader.ui.main
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.dev1ck.ytloader.BuildConfig
 import io.github.dev1ck.ytloader.EngineStatus
 import io.github.dev1ck.ytloader.R
 import io.github.dev1ck.ytloader.YTLoaderApp
@@ -18,6 +20,8 @@ import io.github.dev1ck.ytloader.download.Mode
 import io.github.dev1ck.ytloader.engine.UpdateResult
 import io.github.dev1ck.ytloader.login.LoginState
 import io.github.dev1ck.ytloader.settings.Settings
+import io.github.dev1ck.ytloader.update.AppUpdateState
+import io.github.dev1ck.ytloader.update.ReleaseRules
 import io.github.dev1ck.ytloader.util.UrlExtractor
 import io.github.dev1ck.ytloader.download.TitlePreview
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +38,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 private const val TITLE_DEBOUNCE_MS = 700L
+private const val TAG = "YTLoader"
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as YTLoaderApp).container
@@ -83,6 +88,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             container.engineUpdating.collect { v -> _state.update { it.copy(engineUpdating = v) } }
         }
+        viewModelScope.launch {
+            container.appUpdate.collect { v -> _state.update { it.copy(appUpdate = v) } }
+        }
+        checkAppUpdate()
     }
 
     fun setUrl(url: String) {
@@ -198,6 +207,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun dismissClipboardSuggestion() {
         dismissedSuggestion = _state.value.clipboardSuggestion
         _state.update { it.copy(clipboardSuggestion = null) }
+    }
+
+    // ---- 앱 자체 업데이트 (FR-15) ----
+
+    /** 프로세스마다 한 번 GitHub 최신 릴리스를 확인한다. 실패하면 조용히 넘어간다. debug 빌드는 서명이 달라 건너뜀. */
+    private fun checkAppUpdate() {
+        if (BuildConfig.DEBUG || container.appUpdate.value != AppUpdateState.None) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val release = runCatching { container.appUpdater.latest() }
+                .onFailure { Log.w(TAG, "app update check failed: ${it.javaClass.simpleName}") }
+                .getOrNull() ?: return@launch
+            if (ReleaseRules.isNewer(release.version, BuildConfig.VERSION_NAME)) {
+                container.appUpdate.compareAndSet(AppUpdateState.None, AppUpdateState.Available(release))
+            }
+        }
+    }
+
+    /** [업데이트]: 받고 바로 설치한다. 확인 화면이 필요하면 시스템이 띄운다. */
+    fun startAppUpdate() {
+        val release = when (val s = container.appUpdate.value) {
+            is AppUpdateState.Available -> s.release
+            is AppUpdateState.Failed -> s.release
+            else -> return
+        }
+        if (_state.value.busy) return showMessage(R.string.app_update_busy)
+        container.appUpdate.value = AppUpdateState.Downloading(release, null)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val apk = container.appUpdater.download(release) { p ->
+                    container.appUpdate.value = AppUpdateState.Downloading(release, p)
+                }
+                container.appUpdate.value = AppUpdateState.Installing(release)
+                container.appUpdater.install(apk)
+            } catch (e: Exception) {
+                Log.w(TAG, "app update failed", e)
+                container.appUpdater.clearDownloads()
+                val reason = e.message ?: e.javaClass.simpleName
+                container.appUpdate.value = AppUpdateState.Failed(
+                    release, getApplication<Application>().getString(R.string.app_update_failed, reason),
+                )
+            }
+        }
+    }
+
+    /** 배너 ✕: 이번 실행 동안 숨긴다. */
+    fun dismissAppUpdate() {
+        if (!_state.value.appUpdateInProgress) container.appUpdate.value = AppUpdateState.Dismissed
     }
 
     fun showFailureDetail() = container.downloadRepository.reopenFailure()

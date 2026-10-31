@@ -10,6 +10,7 @@ import io.github.dev1ck.ytloader.download.QualityOption
 import io.github.dev1ck.ytloader.download.TitleInfo
 import io.github.dev1ck.ytloader.login.LoginState
 import io.github.dev1ck.ytloader.settings.Settings
+import io.github.dev1ck.ytloader.update.AppUpdateState
 
 /** 모드별로 마지막 포맷·품질을 따로 기억한다 (FR-3). */
 data class MainUiState(
@@ -38,6 +39,8 @@ data class MainUiState(
     val titlePreview: TitleState = TitleState.Idle,
     /** 클립보드에 있는 YouTube 링크 (입력란이 비어 있을 때 제안). */
     val clipboardSuggestion: String? = null,
+    /** 앱 자체 업데이트 (FR-15). */
+    val appUpdate: AppUpdateState = AppUpdateState.None,
 ) {
     val format: FormatOption
         get() = FormatCatalog.format(mode, if (mode == Mode.AUDIO) audioFormat else videoFormat)
@@ -49,7 +52,10 @@ data class MainUiState(
     val qualityEnabled: Boolean get() = !busy && format.hasQuality
     val thumbnailEnabled: Boolean get() = !busy && format.supportsThumbnail
     val engineReady: Boolean get() = engineStatus == EngineStatus.Ready
-    val downloadEnabled: Boolean get() = !busy && engineReady && !downloadState.hasResult
+    // 앱 업데이트를 받는 중에는 시작하지 않는다 (설치되면 앱이 종료되므로).
+    val downloadEnabled: Boolean get() = !busy && engineReady && !downloadState.hasResult && !appUpdateInProgress
+    val appUpdateInProgress: Boolean
+        get() = appUpdate is AppUpdateState.Downloading || appUpdate is AppUpdateState.Installing
     val cancelEnabled: Boolean get() = downloadState.isActive
 
     val updateEnabled: Boolean get() = !busy && engineReady

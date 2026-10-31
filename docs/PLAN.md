@@ -427,3 +427,20 @@
     [폴더] → 하위 폴더. [기본 위치로] → "Download/YTLoader", 설정 저장값 삭제 확인. 테스트 파일 삭제.
 - 확인 못 한 것: 실기기(삼성)에서 SAF 폴더 열기·SD카드 폴더, 권한이 사라진 폴더로 시작 시 되돌림(코드 경로만).
 - versionCode는 아직 1 — 다음 릴리스 때 올릴 것.
+
+### 2026-10-31 v0.2.0 준비: 파일명 NFC · 앱 자체 업데이트 (사용자 요청 3건)
+
+- 한글 자모 분리: 기기 저장 이름을 바이트로 확인 → 완성형(`354 225 204` = 아)이라 앱이 분리하는 것은 아님. 제목 자체가
+  NFD(Mac 입력)인 영상이 원인으로 판단. 저장 이름·재생목록 폴더를 `ExportRules.normalizedName`(NFC)으로 정규화.
+  실제 NFD 제목 영상으로는 재현하지 못함(사용자 URL 받으면 확인).
+- 설치 경고: 앱 쪽에서 없앨 수 없음 → Play 프로텍트 "무시하고 설치", 삼성 보안 위험 자동 차단, 2027 개발자 인증 안내.
+  앱 자체 업데이트로 경고는 첫 설치 때만.
+- 앱 자체 업데이트(FR-15): `update/`(ReleaseRules·AppUpdater·InstallResultReceiver), 메인 상단 배너, 권한
+  `REQUEST_INSTALL_PACKAGES`·`UPDATE_PACKAGES_WITHOUT_USER_ACTION`. 버전 0.2.0 / versionCode 2.
+- 증거: `testDebugUnitTest` 65 통과(+ReleaseRules 3, ExportRules NFC 1), `lintDebug` 오류 0(기존 경고 8건만).
+  휴대폰(SM-S948N): versionName만 0.0.9로 낮춘 릴리스 서명 빌드 설치 → 배너 "새 버전 v0.1.0" `build/r5_phone_banner.png`
+  → [업데이트] → 81MB 받기 약 9초 → 시스템 "권한 필요 — 이 출처의 알 수 없는 앱을 설치할 수 없습니다 [설정]"
+  `build/r5_phone_after.png` → 설정 화면까지 확인.
+- ⏸ 남은 검증: "권한 허용"은 사용자 기기 보안 설정이라 세션이 켜지 못함(차단됨) → 사용자가 켠 뒤 설치 완료·버전 0.1.0
+  전환 확인, 이후 0.2.0 빌드 재설치. 업데이트 완료 알림(MY_PACKAGE_REPLACED)은 미확인.
+- 휴대폰에는 현재 검증용 빌드(0.0.9, 릴리스 서명)가 설치돼 있음.

@@ -81,7 +81,7 @@ app/src/main/java/io/github/dev1ck/ytloader/
 │  ├─ DownloadRepository.kt    StateFlow<DownloadState> 공유 (서비스 ↔ UI)
 │  ├─ DownloadService.kt       포그라운드 서비스: 실행·취소·알림·타임아웃
 │  ├─ DownloadNotifications.kt 알림 채널/빌더
-│  └─ MediaStoreExporter.kt    작업 폴더 → 저장 위치 복사 (Exporter: MediaStore 기본 / SAF 트리)
+│  └─ MediaStoreExporter.kt    작업 폴더 → 저장 위치 복사 (Exporter: MediaStore 기본 / SAF 트리, 이름 NFC)
 ├─ login/
 │  ├─ CookieStore.kt           cookies.txt 경로·상태·삭제, 로그아웃
 │  ├─ NetscapeCookieWriter.kt  쿠키 → Netscape 텍스트 (순수)
@@ -404,6 +404,22 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
   엔진이 Ready가 되기 전이므로 다운로드·미리보기와 겹치지 않는다. 실패해도 Ready로 진행.
   주의: 라이브러리의 최신 버전 확인(`ObjectMapper.readTree(URL)`)에는 타임아웃이 없다(파일 받기는 있음).
   에뮬레이터 측정: 앱 실행부터 업데이트 완료(2026.10.26)까지 약 6초.
+
+## 10-1. 앱 자체 업데이트 (FR-15, 2026-10-31)
+
+- 패키지 `update/`: `ReleaseRules`(순수: 태그 해석·비교, APK 첨부 고르기), `AppUpdater`(GitHub API는
+  플랫폼 `org.json`, 받기는 `HttpURLConnection` 15초 타임아웃 → `cacheDir/update/`, 설치는 `PackageInstaller` 세션),
+  `InstallResultReceiver`(비공개 리시버: 세션 결과 + `MY_PACKAGE_REPLACED`). 의존성 추가 없음.
+- 권한: `REQUEST_INSTALL_PACKAGES`, `UPDATE_PACKAGES_WITHOUT_USER_ACTION`(일반 권한). API 31+에서
+  `setRequireUserAction(USER_ACTION_NOT_REQUIRED)` — 자기 자신을 업데이트하는 경우 조건을 만족하면 확인 없이 설치.
+  `STATUS_PENDING_USER_ACTION`이 오면 `EXTRA_INTENT`(시스템 설치 화면)를 띄운다. "출처를 알 수 없는 앱" 허용이
+  안 돼 있으면 시스템 설치 화면이 먼저 그 허용을 요청한다.
+- 상태: `AppContainer.appUpdate: MutableStateFlow<AppUpdateState>`(None/Dismissed/Available/Downloading/
+  Installing/Failed). 리시버가 실패를 여기에 쓴다. `STATUS_FAILURE_ABORTED`(사용자 취소)는 Available로 되돌림.
+- 설치 직전 `filesDir/app_update_pending`에 새 버전 태그를 쓰고, 새 버전의 `MY_PACKAGE_REPLACED`에서 그 파일이
+  있으면 완료 알림을 띄우고 지운다(adb·수동 업데이트에는 알림 없음). 앱 시작 시 `cacheDir/update/` 정리.
+- 실기기(SM-S948N, Android 17) 확인: 81MB APK 받기 약 9초, 첫 업데이트에서 "권한 필요 — 이 출처의 알 수 없는
+  앱을 설치할 수 없습니다 [설정]" 표시.
 
 ## 11. UI 구조와 상태
 

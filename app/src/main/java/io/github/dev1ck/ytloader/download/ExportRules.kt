@@ -1,5 +1,7 @@
 package io.github.dev1ck.ytloader.download
 
+import java.text.Normalizer
+
 /** ARCHITECTURE 8장: 작업 폴더에서 공용 저장소로 내보낼 최종 파일인지 (yt-dlp 중간 산출물 제외). */
 object ExportRules {
     private val tempExtensions = setOf("part", "ytdl", "temp", "frag")
@@ -22,4 +24,10 @@ object ExportRules {
             else -> true
         }
     }
+
+    /**
+     * 저장할 이름을 완성형(NFC)으로. Mac에서 입력된 YouTube 제목은 한글이 자모 분리형(NFD)일 수 있고,
+     * 그대로 저장하면 Windows로 옮겼을 때 `ㅇㅏㅇㅣㅇㅠ`처럼 풀어져 보인다.
+     */
+    fun normalizedName(name: String): String = Normalizer.normalize(name, Normalizer.Form.NFC)
 }

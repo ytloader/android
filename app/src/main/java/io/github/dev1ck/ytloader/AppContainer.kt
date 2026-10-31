@@ -6,6 +6,8 @@ import io.github.dev1ck.ytloader.engine.YoutubeDlAndroidEngine
 import io.github.dev1ck.ytloader.engine.YtDlpEngine
 import io.github.dev1ck.ytloader.login.CookieStore
 import io.github.dev1ck.ytloader.settings.SettingsRepository
+import io.github.dev1ck.ytloader.update.AppUpdateState
+import io.github.dev1ck.ytloader.update.AppUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,4 +33,6 @@ class AppContainer(context: Context) {
     val settingsRepository = SettingsRepository(appContext)
     val cookieStore = CookieStore(appContext)
     val workRoot = File(appContext.filesDir, "work")
+    val appUpdater = AppUpdater(appContext)
+    val appUpdate = MutableStateFlow<AppUpdateState>(AppUpdateState.None)
 }

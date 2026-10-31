@@ -1,5 +1,6 @@
 package io.github.dev1ck.ytloader.download
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -37,5 +38,12 @@ class ExportRulesTest {
         assertFalse(ExportRules.isExportable("a.JPG"))
         assertFalse(ExportRules.isExportable("a.jpeg"))
         assertFalse(ExportRules.isExportable("a.png"))
+    }
+
+    @Test fun normalizedNameComposesHangul() {
+        val nfd = "아이유 (IU).mp3" // 아이유, 자모 분리형
+        assertEquals("아이유 (IU).mp3", ExportRules.normalizedName(nfd))
+        assertEquals("Me at the zoo.mp3", ExportRules.normalizedName("Me at the zoo.mp3"))
+        assertEquals("아이유", ExportRules.normalizedName("아이유"))
     }
 }
