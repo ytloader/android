@@ -42,7 +42,7 @@
 | 설정 | DataStore Preferences | [결정] |
 | Intent 직렬화 | `kotlin-parcelize` 플러그인 (`@Parcelize`) | [결정] 런타임 라이브러리 추가 없음 |
 | yt-dlp 엔진 | `io.github.junkfood02.youtubedl-android:library` / `:ffmpeg` **0.18.1** 고정, 저장소 `mavenCentral()` | [결정] aria2c 모듈은 쓰지 않음 |
-| 빌드 | Gradle Kotlin DSL + 버전 카탈로그(`gradle/libs.versions.toml`) | [결정] |
+| 빌드 | Gradle Kotlin DSL + 버전 카탈로그(`gradle/libs.versions.toml`) | [결정] AGP 9의 내장 Kotlin 지원을 쓰므로 `org.jetbrains.kotlin.android` 플러그인은 적용하지 않는다 |
 | AGP·Kotlin·Compose BOM 버전 | 구현 시점 최신 안정판 | [구현자 판단] 선택 버전을 작업 로그에 기록 |
 | 테스트 | JUnit (JVM 단위 테스트) | [결정] 순수 로직 위주 (16장) |
 
@@ -382,7 +382,9 @@ DataStore 키: `mode`, `audio_format`, `audio_quality`, `video_format`, `video_r
 - 서비스: `android:foregroundServiceType="dataSync"`, `exported="false"`.
 - MainActivity intent-filter: `ACTION_SEND` + `CATEGORY_DEFAULT` + `mimeType="text/plain"`.
 - `android:allowBackup="false"` (쿠키 보호, NFR-2).
-- SDK: minSdk 29, targetSdk 36, compileSdk 36.
+- SDK: minSdk 29, targetSdk 36, compileSdk 37. (2026-10-31 사용자 결정: 설치된 플랫폼이
+  37이고 compileSdk는 동작을 바꾸지 않음. targetSdk 37은 네이티브 라이브러리 `System.load`
+  읽기 전용 강제 등 라이브러리 호환이 검증되지 않아 36 유지.)
 - ABI: debug는 `arm64-v8a`, `x86_64`(에뮬레이터), release는 `arm64-v8a`만.
 - 릴리스 서명: 저장소 루트 `keystore.properties`(gitignore)에서 읽고, 없으면 release
   서명 설정을 건너뛴다. 키스토어 생성은 사용자와 함께 한다.

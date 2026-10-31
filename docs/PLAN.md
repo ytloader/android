@@ -15,7 +15,7 @@
 
 - [x] 확인: `java -version`(17 이상), `$env:ANDROID_HOME`, `gradle --version`, `adb devices`
       → 실제 상태는 위 설명과 다름. 작업 로그 2026-10-31 M0 참고.
-- [ ] ⏸ 없는 항목에 대해 아래 두 방법을 제시하고 사용자가 고르게 한다. 승인 후 설치.
+- [x] ⏸ 없는 항목에 대해 아래 두 방법을 제시하고 사용자가 고르게 한다. 승인 후 설치.
       - A (GUI, 사용자가 일부 진행): `winget install Google.AndroidStudio` → **사용자가**
         Android Studio를 한 번 실행해 설정 마법사로 SDK·에뮬레이터 설치. 세션은 Studio에
         포함된 JBR(`C:\Program Files\Android\Android Studio\jbr`)을 `JAVA_HOME`으로 쓴다.
@@ -25,11 +25,12 @@
         (에뮬레이터가 필요하면 `"emulator" "system-images;android-36;google_apis;x86_64"` 추가).
       - 둘 다 Gradle CLI가 필요하다(래퍼 생성용 1회): `winget install Gradle.Gradle`.
       - `ANDROID_HOME`은 사용자 환경 변수로 설정, `local.properties`의 `sdk.dir`도 기록.
-- [ ] 프로젝트 파일은 마법사 없이 직접 작성한다(settings.gradle.kts, build.gradle.kts,
+- [x] 프로젝트 파일은 마법사 없이 직접 작성한다(settings.gradle.kts, build.gradle.kts,
       gradle/libs.versions.toml, app 모듈, `.gitignore`) → `gradle wrapper`로
       `gradlew.bat`·`gradle/wrapper/*` 생성 → 이후로는 래퍼만 사용.
-- [ ] 테스트 기기: 실기기(USB 디버깅) 우선, 없으면 x86_64 에뮬레이터(AVD) 생성
-- [ ] 완료 조건: 빈 Compose 화면 앱이 `.\gradlew.bat assembleDebug`로 빌드되고
+- [x] 테스트 기기: 실기기(USB 디버깅) 우선, 없으면 x86_64 에뮬레이터(AVD) 생성
+      → 사용자 결정: 모든 검증은 에뮬레이터, 완성 후 마지막에 실기기 테스트
+- [x] 완료 조건: 빈 Compose 화면 앱이 `.\gradlew.bat assembleDebug`로 빌드되고
       기기에서 실행된 스크린샷 확보
 
 ## M1 엔진 스파이크 (진행 여부 판단)
@@ -116,4 +117,21 @@
   - AVD `Medium_Phone_API_37.0` (x86_64, RAM 2GB). WHPX 사용 가능.
   - PATH에 `java`·`gradle` 없음, `JAVA_HOME`·`ANDROID_HOME` 미설정.
   - `adb devices`: 연결된 기기 없음.
-- 사용자 결정 대기: 환경 변수 설정, compileSdk 36 플랫폼 확보 방법, Gradle 래퍼 생성 방법, 테스트 기기.
+- 사용자 결정 (2026-10-31):
+  - `JAVA_HOME`(Studio JBR), `ANDROID_HOME`(위 SDK) 사용자 환경 변수 설정 — 설치 위치 그대로.
+  - **compileSdk 37 + targetSdk 36** (ARCHITECTURE 13장·SPEC NFR-1 갱신).
+  - Gradle은 설치하지 않고 임시 폴더에 받은 9.8.2 zip(sha256 확인)으로 `gradle wrapper`만 1회 실행.
+  - **모든 검증은 에뮬레이터**로 진행하고, 완성 후 사용자가 실기기로 최종 테스트한다.
+    따라서 M1 ⏸(측정 보고)는 측정값이 비실용적일 때만 멈추고, 아니면 기록 후 계속한다.
+    실기기·계정이 필요한 검증(FR-2 YouTube 앱 공유, FR-9 실제 로그인)은 마지막 실기기 테스트로 미룬다.
+
+### 2026-10-31 M0 환경 준비 완료
+
+- [구현자 판단] 버전: Gradle 9.8.2, AGP 9.5.0, Kotlin 2.4.21(Compose·Parcelize 플러그인),
+  Compose BOM 2026.09.00, core-ktx 1.19.1, activity-compose 1.13.0, lifecycle 2.11.0,
+  coroutines 1.11.0, DataStore 1.3.0, JUnit 4.13.2. JDK = Studio JBR 25.0.4.
+- AGP 9 내장 Kotlin 사용 → `org.jetbrains.kotlin.android` 플러그인 미적용 (ARCHITECTURE 1장에 기록).
+- Activity 테마는 AppCompat/MDC 의존성 없이 `android:Theme.Material.Light.NoActionBar`.
+- 증거: `.\gradlew.bat assembleDebug` → BUILD SUCCESSFUL (36 tasks).
+  에뮬레이터 `Medium_Phone_API_37.0`(API 37, x86_64)에 `installDebug` 후 실행,
+  스크린샷 `build/m0_empty.png` (빈 화면에 "YTLoader").

@@ -286,7 +286,7 @@ WinForms)이 이미 있고, 이 프로젝트는 같은 기능을 Android 앱으�
 
 ## 8. 비기능 요구사항 (NFR)
 
-- **NFR-1 플랫폼**: minSdk 29 (Android 10), target/compileSdk 36. 주 대상 ABI arm64-v8a.
+- **NFR-1 플랫폼**: minSdk 29 (Android 10), targetSdk 36, compileSdk 37. 주 대상 ABI arm64-v8a.
 - **NFR-2 개인정보**: 쿠키 값과 cookies.txt 내용을 로그 · 알림 · 오류 메시지에 출력하지
   않는다. 쿠키 파일은 앱 전용 비백업 영역에 저장하고 백업에서 제외한다.
 - **NFR-3 네트워크**: YouTube/Google(다운로드·로그인)과 GitHub(yt-dlp 업데이트) 외의
