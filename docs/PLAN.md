@@ -94,7 +94,7 @@
 
 ## M6 마감
 
-- [ ] SPEC 7장 표의 각 행을 확인하고 결과를 작업 로그에 표로 남김
+- [x] SPEC 7장 표의 각 행을 확인하고 결과를 작업 로그에 표로 남김
 - [ ] ⏸ 앱 라이선스 결정(SPEC O-4), 릴리스 키스토어 생성(사용자와 함께)
 - [ ] release 빌드(arm64-v8a, 서명), README(설치·사용법·Play 미배포 이유)
 - [ ] 완료 조건: `.\gradlew.bat testDebugUnitTest lintRelease assembleRelease` 성공
@@ -262,3 +262,34 @@
     로그인됨 + 스위치 다시 켜짐(`build/m5_import_valid.png`), 저장 파일 md5 = 원본.
 - 남은 것 (최종 실기기 테스트): 실제 계정 앱 내 로그인 → 비공개/연령 제한 영상 다운로드, SPEC O-1 결과 기록,
   데스크톱판 실제 cookies.txt 가져오기.
+
+### 2026-10-31 M6 마감 (진행 중 — ⏸ 라이선스·키스토어 대기)
+
+- SPEC 7장 표 확인 (에뮬레이터):
+
+  | 상황 | 결과 | 증거 |
+  |---|---|---|
+  | URL 비어 있음 | OK — "URL을 입력해 주세요.", 시작 안 함 | M3 |
+  | 공유 텍스트에 URL 없음 | OK | M4 |
+  | yt-dlp 실패 (일반) | OK — 대화상자(종료 코드 알 수 없음 + ERROR 줄 + 업데이트 안내) | `build/m3_failure_dialog.png` |
+  | 로그인 키워드 안내 | 단위 테스트로 확인(ErrorHintMapperTest 4건). 기기 재현용 비공개 영상 없음 | — |
+  | 네트워크 끊김 | OK — yt-dlp 오류("Unable to download API page ... Errno 7")로 처리 | `build/m6_network_off.png` |
+  | 엔진 초기화 실패 | 재현 불가 — 코드 경로 확인(EngineStatus.Failed → 대화상자, 다운로드·업데이트 비활성, 로그인 영역은 사용 가능) | — |
+  | 알림 권한 거부 | OK — `pm revoke` 후 다운로드 완료, 앱 알림 0건 | — |
+  | dataSync 시간 제한 | OK — `device_config ... data_sync_fgs_timeout_duration 15000` + 백그라운드 → 16초에 중단, "시스템 제한으로 다운로드가 중단되었습니다." 알림·대화상자, 앱 프로세스 생존, 하위 프로세스 없음, 공용 저장소 부분 파일 없음. 이때는 즉시 `stopSelf`가 우선이라 재생목록 완성 항목도 저장하지 않음 | `build/m6_fgs_timeout_notification.png` |
+  | 앱 프로세스 강제 종료 | OK — 다운로드 중 `force-stop` → `files/work/<id>` 남음 → 재실행 시 삭제 | — |
+  | 같은 이름 존재 | OK — ` (1)`, ` (2)` | M3 표 |
+  | 저장 공간 부족 | 재현 안 함 — 코드 경로: 복사 예외 → insert 항목 삭제 → Failed("저장 실패: ..."), 작업 폴더 삭제 | — |
+  | 파일명 특수문자 | OK — `Pyro [1/3]` → `Pyro [1⧸3]` (`--windows-filenames`, 데스크톱판과 같은 규칙) | M3 |
+  | 업데이트 중 네트워크 오류 | OK | `build/m4_update_failed.png` |
+  | 로그인 막힘 | 배너 고정 문구 표시. 실제 차단 여부는 실기기 검증 | `build/m5_login_screen.png` |
+
+- 시간 제한 테스트 중 발견: 앱이 백그라운드일 때 `startForegroundService`가 거부되면 예외로 앱이 죽고
+  상태가 Preparing에 묶임(실사용 경로인 UI 버튼은 포그라운드라 해당 없음, debug 훅에서 발생)
+  → `startDownload`에서 `IllegalStateException`을 잡아 Failed로 돌리도록 수정.
+- 앱 아이콘(적응형, 빨간 배경 + 흰 다운로드 화살표, `build/m6_launcher.png`), 릴리스 서명 설정
+  (`keystore.properties` 있으면 사용, 없으면 미서명), README 작성(라이선스 절은 결정 대기).
+- 증거: `.\gradlew.bat testDebugUnitTest lintRelease assembleRelease` → BUILD SUCCESSFUL, 47 tests,
+  lint 오류 0(경고 7: targetSdk 36·release arm64만·SPEC 문구 "..." 4건·`fullBackupContent` 권고 — 모두 의도),
+  `app-release-unsigned.apk` 78.3MB (arm64-v8a).
+- ⏸ 사용자 결정 대기: 앱 라이선스(SPEC O-4), 릴리스 키스토어 생성(사용자와 함께).

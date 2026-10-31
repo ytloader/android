@@ -10,6 +10,7 @@ import io.github.dev1ck.ytloader.R
 import io.github.dev1ck.ytloader.YTLoaderApp
 import io.github.dev1ck.ytloader.download.DownloadRequest
 import io.github.dev1ck.ytloader.download.DownloadService
+import io.github.dev1ck.ytloader.download.DownloadState
 import io.github.dev1ck.ytloader.download.Mode
 import io.github.dev1ck.ytloader.engine.UpdateResult
 import io.github.dev1ck.ytloader.login.LoginState
@@ -162,7 +163,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (url.isEmpty() || !s.downloadEnabled) return
         if (!container.downloadRepository.tryBegin()) return
         val cookieFile = container.cookieStore.file.takeIf { s.loginState is LoginState.LoggedIn && s.useCookies }
-        DownloadService.start(getApplication(), DownloadRequest(url, s.toOptions(), cookieFile?.absolutePath))
+        try {
+            DownloadService.start(getApplication(), DownloadRequest(url, s.toOptions(), cookieFile?.absolutePath))
+        } catch (e: IllegalStateException) {
+            // 백그라운드 FGS 시작 제한 등. Preparing에 묶여 있지 않도록 실패로 돌린다.
+            container.downloadRepository.set(
+                DownloadState.Failed(null, e.message ?: e.javaClass.simpleName, "", savedCount = 0),
+            )
+        }
     }
 
     fun cancelDownload() = DownloadService.cancel(getApplication())

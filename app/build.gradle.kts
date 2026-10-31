@@ -1,7 +1,15 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.parcelize)
+}
+
+// 릴리스 서명: 저장소 루트 keystore.properties(gitignore). 없으면 release 서명 설정을 건너뛴다.
+// 키: storeFile, storePassword, keyAlias, keyPassword
+val keystoreProperties = rootProject.file("keystore.properties").takeIf { it.isFile }?.let { file ->
+    Properties().apply { file.inputStream().use { load(it) } }
 }
 
 android {
@@ -16,6 +24,17 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        if (keystoreProperties != null) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
@@ -23,6 +42,7 @@ android {
         release {
             isMinifyEnabled = false
             ndk { abiFilters += listOf("arm64-v8a") }
+            if (keystoreProperties != null) signingConfig = signingConfigs.getByName("release")
         }
     }
 
