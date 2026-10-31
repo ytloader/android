@@ -34,6 +34,11 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // youtubedl-android는 nativeLibraryDir의 libpython.so 등을 실행 파일로 쓰므로 압축 해제 설치가 필요하다.
+    packaging {
+        jniLibs { useLegacyPackaging = true }
+    }
 }
 
 dependencies {
@@ -48,6 +53,8 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.youtubedl.library)
+    implementation(libs.youtubedl.ffmpeg)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)

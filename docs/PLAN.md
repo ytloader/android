@@ -37,15 +37,15 @@
 
 목적: youtubedl-android 0.18.1이 기기에서 실제로 YouTube를 받는지, 얼마나 걸리는지 확인.
 
-- [ ] M0 골격에 ARCHITECTURE 1장 의존성 추가: youtubedl-android 0.18.1
+- [x] M0 골격에 ARCHITECTURE 1장 의존성 추가: youtubedl-android 0.18.1
       (library, ffmpeg, `mavenCentral()`), 라이브러리 README의 패키징 설정 적용
-- [ ] ARCHITECTURE 4장의 [확인 필요] 항목을 라이브러리 소스로 확인하고 문서 갱신
+- [x] ARCHITECTURE 4장의 [확인 필요] 항목을 라이브러리 소스로 확인하고 문서 갱신
       (버전 조회 API, stderr 전달 방식, 패키징 요구사항, 라이선스)
-- [ ] 임시 디버그 코드로 측정 (jNQXAC9IVRw):
+- [x] 임시 디버그 코드로 측정 (jNQXAC9IVRw):
       - init 소요 시간 (첫 실행 / 두 번째 실행)
       - `--simulate --print title` 소요 시간, 출력에 JS 런타임 경고가 있는지
       - mp3 + 썸네일 실제 다운로드 소요 시간, 결과 파일 크기
-- [ ] ⏸ 측정값 보고 (SPEC O-2 판단 근거). 사용자 확인 후 M2 진행
+- [x] ⏸ 측정값 보고 (SPEC O-2 판단 근거). 사용자 확인 후 M2 진행
 - 스파이크용 임시 코드는 M3에서 정식 구조로 대체하고 지운다.
 
 ## M2 순수 로직 + 단위 테스트
@@ -135,3 +135,29 @@
 - 증거: `.\gradlew.bat assembleDebug` → BUILD SUCCESSFUL (36 tasks).
   에뮬레이터 `Medium_Phone_API_37.0`(API 37, x86_64)에 `installDebug` 후 실행,
   스크린샷 `build/m0_empty.png` (빈 화면에 "YTLoader").
+
+### 2026-10-31 M1 엔진 스파이크 완료
+
+- youtubedl-android 0.18.1 library·ffmpeg 추가, `packaging.jniLibs.useLegacyPackaging = true`,
+  `INTERNET` 권한. 임시 코드 `SpikeRunner.kt` (MainActivity에 `--es spike <step>`로 실행, M3에서 삭제).
+- [확인 필요] 해소 (소스 `d725d5c` + 실행, ARCHITECTURE 1·4장 갱신):
+  - 버전: `version(ctx)`는 업데이트 전 null → `--version` 실행으로 조회하도록 설계 변경.
+  - stderr: `redirectErrorStream=true`면 `ERROR:` 줄이 콜백으로 옴(채택). 실패 시 종료 코드는 알 수 없음.
+  - 패키징: README의 `extractNativeLibs=true` = AGP `useLegacyPackaging=true`.
+  - 라이선스: GPL-3.0 (SPEC O-4에 기록, M6 사용자 결정).
+  - `destroyProcessById`의 하위 프로세스 종료는 PID 대신 ID 문자열을 써서 동작하지 않음 → M3 취소 검증 때 확인.
+- 측정 (에뮬레이터 API 37 x86_64, jNQXAC9IVRw):
+
+  | 항목 | 내장 2025.11.12 | 업데이트 후 2026.10.26 |
+  |---|---|---|
+  | init 첫 실행 / 이후 | 1,993 ms / 120–150 ms | — |
+  | `--version` | 1,275 ms | 657 ms |
+  | `--simulate --print title` | 5,962 ms | 10,942 ms (`[jsc:quickjs]` 사용) |
+  | 같은 명령 + `--cache-dir` (2회) | 5,789 / 5,741 ms | 10,390 / 10,216 ms |
+  | mp3 + 썸네일 + 메타 | 19,033 ms, 669,059 B | 24,367 ms, 669,087 B |
+  | 업데이트 | DONE 2,524 ms, 재실행 ALREADY_UP_TO_DATE 596 ms | |
+  | 잘못된 ID | `ERROR: [youtube] xxxxxxxxxxx: This video is unavailable` (YoutubeDLException) | |
+
+  JS 런타임 관련 경고 없음. 내장판은 "older than 90 days" 경고, 추출 시 SABR 경고(정상 동작).
+- 결정: 에뮬레이터 기준 실용적 → 사용자 지시(모든 검증 에뮬레이터, 완성 후 실기기)대로 멈추지 않고 M2 진행.
+  실기기 측정은 최종 실기기 테스트에서 다시 기록한다.

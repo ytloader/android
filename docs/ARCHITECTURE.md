@@ -51,8 +51,11 @@ youtubedl-android 0.18.1 사실 (2026-10-31 확인, GitHub yausername/youtubedl-
   `--js-runtimes quickjs:<nativeLibraryDir>/libqjs.so`를 붙인다.
 - 0.18.0: 16KB 페이지 크기 지원. 내장 Python 3.12, ffmpeg 7.1.
 - 라이브러리 minSdk 24, ABI: x86, x86_64, armeabi-v7a, arm64-v8a.
-- `execute()`가 `--ffmpeg-location`도 자동으로 붙인다.
-- 라이선스: [확인 필요] (SPEC O-4).
+- `execute()`가 `--ffmpeg-location`도 자동으로 붙인다. `--cache-dir`가 없으면 `--no-cache-dir`도 붙인다.
+- 라이선스: **GPL-3.0** (저장소 LICENSE, 2026-10-31 확인). 이 라이브러리를 포함해 APK를
+  배포하면 앱도 GPL-3.0 호환 라이선스여야 한다 (SPEC O-4, M6에서 사용자 결정).
+- 내장 yt-dlp는 2025.11.12. 첫 실행 시 "older than 90 days" 경고가 stderr에 나오며,
+  업데이트(STABLE) 후 2026.10.26에서 QuickJS로 JS 챌린지를 푼다(`[jsc:quickjs]`).
 
 ## 2. 프로젝트 구조
 
@@ -115,7 +118,7 @@ LoginScreen(WebView)           ├─ CookieStore (상태·로그아웃·가져�
 ```kotlin
 interface YtDlpEngine {
     suspend fun init()                          // YoutubeDL.init + FFmpeg.init, IO 디스패처, 실패 시 예외
-    fun version(): String?                      // 현재 yt-dlp 버전 문자열
+    fun version(): String?                      // 현재 yt-dlp 버전 문자열 (`--version` 실행, 블로킹)
     fun execute(
         url: String,
         options: List<YtOption>,
@@ -128,23 +131,40 @@ interface YtDlpEngine {
 data class YtOption(val name: String, val value: String? = null)
 ```
 
-라이브러리 매핑 (2026-10-31 master 소스 기준, 0.18.1에서 [확인 필요]):
+라이브러리 매핑 (0.18.1 소스 `d725d5c`와 M1 에뮬레이터 실행으로 2026-10-31 확인):
 - `YoutubeDL.getInstance().init(ctx)`, `FFmpeg.getInstance().init(ctx)` — 앱 시작 시
   1회, IO 스레드. 첫 실행은 내장 Python 압축 해제로 수 초 걸릴 수 있다.
 - `execute(request, processId, callback: (Float, Long, String) -> Unit): YoutubeDLResponse`
   - `YoutubeDLRequest(url)`에 `addOption(name)` / `addOption(name, value)`로 옵션 추가.
   - 실패 시 `YoutubeDLException`, 취소 시 `CanceledException` (또는 `InterruptedException`).
   - 같은 processId 중복 실행은 예외 → 작업마다 UUID 사용.
-- `destroyProcessById(id)`: 하위 프로세스(ffmpeg)까지 종료 (0.17.4+).
-- `updateYoutubeDL(ctx, UpdateChannel.STABLE)`: `DONE` / `ALREADY_UP_TO_DATE` / null.
-- 버전 조회 API: `version(ctx)` 형태로 예상 — [확인 필요] (M1에서 소스 확인).
-- `ExecResult`: `exitCode: Int?`(알 수 없으면 null → 화면에 "알 수 없음"),
-  마지막 `ERROR:` 줄(없으면 오류 메시지의 마지막 줄), `cancelled: Boolean`.
-  실패 시 라이브러리가 종료 코드 없이 `YoutubeDLException(stderr)`만 던질 수 있고,
-  stderr가 콜백으로 오지 않을 수도 있다 — [확인 필요] M1에서 실제 동작을 확인하고 이 절을 갱신한다.
+- 옵션은 이름별 `LinkedHashMap`에 모인다(같은 이름을 여러 번 넣으면 첫 위치에 묶임).
+  우리 빌더는 같은 옵션을 반복하지 않으므로 순서가 그대로 유지된다.
+- `destroyProcessById(id)`: 메인 프로세스를 `destroy()`하고 맵에서 지운다 → `execute`가
+  `CanceledException`. 하위 프로세스 종료 코드는 `pstree -p <processId>`에 **PID가 아니라
+  우리가 넘긴 문자열 ID**를 넣어서 사실상 동작하지 않는다. M3 취소 검증에서 ffmpeg가 남는지
+  확인하고, 남으면 엔진 래퍼가 취소 시 자기 UID의 `libffmpeg.so`/`libqjs.so` 프로세스를
+  정리한다 (단일 작업 원칙이라 안전) — [구현자 판단].
+- `updateYoutubeDL(ctx, UpdateChannel.STABLE)`: `DONE` / `ALREADY_UP_TO_DATE`, 실패 시
+  `YoutubeDLException`. GitHub API로 최신 태그를 받아 SharedPreferences에 저장한다.
+- 버전 조회: `version(ctx)`는 그 SharedPreferences 값이라 **업데이트를 한 번도 안 했으면 null**
+  (내장 바이너리 버전을 모름). 따라서 `version()`은 `--version`을 실행해 stdout 첫 줄을
+  쓴다 (에뮬레이터 0.7–1.3초). 업데이트 후에는 `version(ctx)`와 같은 값(예 `2026.10.26`).
+- 출력 전달: `execute(request, id, redirectErrorStream, callback)`.
+  - `false`(기본): stderr는 콜백에 오지 않고, 실패 시 `YoutubeDLException(message = stderr 전체)`.
+  - `true`: stderr 줄(`WARNING:`, `ERROR:`)도 콜백으로 오고, 실패 시 예외 메시지는 빈 문자열.
+  - 종료 코드는 성공 시에만 `YoutubeDLResponse.exitCode`로 알 수 있다. 실패 시는 모름.
+- **우리 사용법**: `redirectErrorStream = true`로 실행해 `ERROR:` 줄을 ProgressParser 규칙 4로
+  받는다. `ExecResult`: `exitCode: Int?`(성공 0, 실패 null → 화면에 "알 수 없음"),
+  `lastError`(마지막 `ERROR:` 줄, 없으면 예외 메시지의 마지막 비어 있지 않은 줄, 그것도 없으면
+  예외 클래스 이름), `cancelled: Boolean`.
   `execute()`는 예외를 밖으로 던지지 않고 항상 `ExecResult`로 바꿔 돌려준다.
-- 라이브러리 패키징 요구사항(`extractNativeLibs`, `useLegacyPackaging` 등)은
-  0.18.1 README를 따른다 — [확인 필요].
+- 패키징: README는 `android:extractNativeLibs="true"`를 요구한다(실행 파일을 nativeLibraryDir에서
+  직접 실행). AGP에서는 `packaging.jniLibs.useLegacyPackaging = true`로 같은 효과를 낸다
+  (샘플 앱과 동일). APK가 커진다(debug 2 ABI 약 137MB).
+- 성능 (M1, 에뮬레이터 API 37 x86_64, jNQXAC9IVRw): init 첫 실행 2.0초 / 이후 0.12초,
+  `--simulate --print title` 5.8초(내장판) / 10.3초(2026.10.26, QuickJS 사용),
+  mp3+썸네일+메타 19.0초 / 24.4초, 결과 669KB. `--cache-dir`는 시간 차이 없음 → 쓰지 않음.
 
 ## 5. yt-dlp 옵션 매핑 (골든 예제)
 

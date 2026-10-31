@@ -16,6 +16,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        intent.getStringExtra("spike")?.let { step ->
+            Thread { SpikeRunner.run(applicationContext, step) }.start()
+        }
         setContent {
             YTLoaderTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
