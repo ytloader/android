@@ -14,8 +14,10 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.dev1ck.ytloader.ui.login.LoginScreen
 import io.github.dev1ck.ytloader.ui.main.MainScreen
 import io.github.dev1ck.ytloader.ui.main.MainViewModel
+import io.github.dev1ck.ytloader.ui.main.Screen
 import io.github.dev1ck.ytloader.ui.theme.YTLoaderTheme
 
 class MainActivity : ComponentActivity() {
@@ -35,19 +37,25 @@ class MainActivity : ComponentActivity() {
                 val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
                     viewModel.startDownload()
                 }
-                MainScreen(
-                    state = state,
-                    viewModel = viewModel,
-                    onDownloadClick = {
-                        if (viewModel.validateUrl()) {
-                            if (needsNotificationPermission() && viewModel.consumeNotificationPermissionAsk()) {
-                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                viewModel.startDownload()
+                when (state.screen) {
+                    Screen.Main -> MainScreen(
+                        state = state,
+                        viewModel = viewModel,
+                        onDownloadClick = {
+                            if (viewModel.validateUrl()) {
+                                if (needsNotificationPermission() && viewModel.consumeNotificationPermissionAsk()) {
+                                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    viewModel.startDownload()
+                                }
                             }
-                        }
-                    },
-                )
+                        },
+                    )
+                    Screen.Login -> LoginScreen(
+                        onCookiesDetected = viewModel::onLoginCookies,
+                        onCancel = viewModel::onLoginCancelled,
+                    )
+                }
             }
         }
     }

@@ -367,7 +367,8 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
 - `ActivityResultContracts.OpenDocument`, MIME `text/plain`, `*/*`.
 - 1MB 초과 파일은 거부. 줄 단위로 읽어 `#HttpOnly_` 접두사를 제거한 뒤
   탭으로 나눈 필드가 7개이고 도메인이 `youtube.com`으로 끝나는 줄이 1개 이상이면 통과.
-- 통과 시 원문 그대로 쿠키 파일 경로에 저장(덮어쓰기).
+- 통과 시 원문 그대로 쿠키 파일 경로에 저장(덮어쓰기). 성공 안내는 "cookies.txt를 가져왔습니다."
+  ([구현자 판단]), 앱 내 로그인 성공은 "로그인 완료".
 
 ### 로그아웃
 
@@ -439,6 +440,8 @@ DataStore 키: `mode`, `audio_format`, `audio_quality`, `video_format`, `video_r
 - 쿠키: 비백업 영역, 백업 비활성, 로그/알림/오류 문구에 값 미노출, 로그아웃 시 완전 삭제.
 - WebView: 로그인 화면에서만 사용. 임의 URL 로드 금지(google.com, youtube.com 계열
   외 내비게이션은 외부 브라우저로 넘기거나 차단 — [구현자 판단]).
+  → M5: 메인 프레임 이동 중 호스트가 `google.*`, `youtube.*`, `gstatic.com`,
+  `googleusercontent.com`(하위 도메인 포함)이 아니면 `ACTION_VIEW`로 외부 브라우저에 넘긴다.
 - 내보내는 컴포넌트는 MainActivity(공유 수신)뿐.
 
 ## 16. 테스트 전략

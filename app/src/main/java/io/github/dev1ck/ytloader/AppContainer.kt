@@ -4,6 +4,7 @@ import android.content.Context
 import io.github.dev1ck.ytloader.download.DownloadRepository
 import io.github.dev1ck.ytloader.engine.YoutubeDlAndroidEngine
 import io.github.dev1ck.ytloader.engine.YtDlpEngine
+import io.github.dev1ck.ytloader.login.CookieStore
 import io.github.dev1ck.ytloader.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,5 +27,6 @@ class AppContainer(context: Context) {
     val ytDlpVersion = MutableStateFlow<String?>(null)
     val downloadRepository = DownloadRepository()
     val settingsRepository = SettingsRepository(appContext)
+    val cookieStore = CookieStore(appContext)
     val workRoot = File(appContext.filesDir, "work")
 }

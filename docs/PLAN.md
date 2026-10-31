@@ -84,12 +84,12 @@
 
 ## M5 로그인
 
-- [ ] FR-9 LoginScreen(WebView) + 쿠키 감지 + 저장 + 자동 닫기
-- [ ] FR-10 cookies.txt 가져오기
-- [ ] 로그아웃, [로그인 쿠키 사용] 스위치, 옵션 빌더 연동
-- [ ] 구현자 검증: 사용자가 준 데스크톱판 cookies.txt를 `adb push`로 넣고 가져오기 →
+- [x] FR-9 LoginScreen(WebView) + 쿠키 감지 + 저장 + 자동 닫기
+- [x] FR-10 cookies.txt 가져오기
+- [x] 로그아웃, [로그인 쿠키 사용] 스위치, 옵션 빌더 연동
+- [x] 구현자 검증: 사용자가 준 데스크톱판 cookies.txt를 `adb push`로 넣고 가져오기 →
       로그인 상태 표시, 다운로드 옵션에 `--cookies` 포함(로그로 확인, 값은 출력 금지)
-- [ ] ⏸ 사용자 검증 요청: 실제 계정으로 앱 내 로그인 → 비공개/연령 제한 영상 다운로드.
+- [ ] ⏸ (최종 실기기 테스트로 미룸) 사용자 검증 요청: 실제 계정으로 앱 내 로그인 → 비공개/연령 제한 영상 다운로드.
       SPEC O-1 결과(로그인 차단 여부, UA 조정 필요 여부)를 기록
 
 ## M6 마감
@@ -238,3 +238,27 @@
     다시 누르면 "이미 최신 버전입니다 (v2026.10.26)". 네트워크 끔 → "업데이트 실패: failed to update youtube-dl:
     Unable to resolve host "api.github.com"..." (`build/m4_update_failed.png`), 버전 유지.
   - 실기기 YouTube 앱 → 공유 확인은 최종 실기기 테스트로 미룸.
+
+### 2026-10-31 M5 로그인 구현 완료 (사용자 실계정 검증은 최종 실기기 테스트로 미룸)
+
+- CookieStore(`no_backup/cookies.txt`, 상태·저장·가져오기·로그아웃), LoginScreen(WebView, 1초 폴링 +
+  onPageFinished 감지, flush → 2초 → 저장 → 닫기), 메인 화면 로그인 영역(상태·스위치·설명·로그아웃 확인),
+  `cookieFile = 로그인 && 스위치`일 때만 `--cookies`. 다운로드가 끝나면 로그인 표시(파일 수정일) 갱신.
+  UA는 기본값, `STRIP_WV_FROM_USER_AGENT` 상수 하나로 `; wv` 제거 전환 가능(SPEC O-1 대비).
+- 데스크톱판 cookies.txt는 받지 못했고 `%LOCALAPPDATA%\YTLoader`에도 없음 → **더미 값**으로 검증
+  (실제 쿠키 값은 쓰지도 출력하지도 않음).
+- 증거 (에뮬레이터):
+  - 로그아웃 상태 `build/m5_logged_out.png`, 로그인 화면(배너 + Google Sign in 페이지) `build/m5_login_screen.png`,
+    뒤로가기 → "로그인이 취소되었습니다.".
+  - 감지 흐름: DevTools 프로토콜로 WebView에 더미 `SAPISID`(.youtube.com) 설정 → 자동으로 닫히고
+    "● 로그인됨 (2026-10-31)", 스위치 켜짐, "로그인 완료" (`build/m5_logged_in.png`). logcat에는
+    `login cookies detected: SAPISID`(이름만). cookies.txt는 헤더 + 7필드 1줄(값은 마스킹해 확인).
+  - 다운로드 인자: 스위치 켬 → python 명령줄에 `--cookies /data/user/0/io.github.dev1ck.ytloader/no_backup/cookies.txt`,
+    다운로드 완료. 스위치 끔 → `--cookies` 없음.
+  - 로그아웃: 확인 대화상자 `build/m5_logout_confirm.png` → "○ 로그인 안 됨", cookies.txt 삭제,
+    로그인 화면을 다시 열어도 자동 감지되지 않음(WebView 쿠키 삭제 확인).
+  - 가져오기: google.com만 있는 파일 → "YouTube 쿠키가 들어 있는 cookies.txt가 아닙니다."(상태 유지,
+    `build/m5_import_invalid.png`). 데스크톱판 형식(CRLF, `#HttpOnly_` 줄 포함) 더미 파일 → "cookies.txt를 가져왔습니다.",
+    로그인됨 + 스위치 다시 켜짐(`build/m5_import_valid.png`), 저장 파일 md5 = 원본.
+- 남은 것 (최종 실기기 테스트): 실제 계정 앱 내 로그인 → 비공개/연령 제한 영상 다운로드, SPEC O-1 결과 기록,
+  데스크톱판 실제 cookies.txt 가져오기.

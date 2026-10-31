@@ -7,6 +7,7 @@ import io.github.dev1ck.ytloader.download.FormatCatalog
 import io.github.dev1ck.ytloader.download.FormatOption
 import io.github.dev1ck.ytloader.download.Mode
 import io.github.dev1ck.ytloader.download.QualityOption
+import io.github.dev1ck.ytloader.login.LoginState
 import io.github.dev1ck.ytloader.settings.Settings
 
 /** 모드별로 마지막 포맷·품질을 따로 기억한다 (FR-3). */
@@ -20,6 +21,9 @@ data class MainUiState(
     val embedThumbnail: Boolean = true,
     val embedMetadata: Boolean = true,
     val playlist: Boolean = false,
+    val useCookies: Boolean = true,
+    val loginState: LoginState = LoginState.LoggedOut,
+    val screen: Screen = Screen.Main,
     val engineStatus: EngineStatus = EngineStatus.Initializing,
     val downloadState: DownloadState = DownloadState.Idle,
     val ytDlpVersion: String? = null,
@@ -41,6 +45,8 @@ data class MainUiState(
     val cancelEnabled: Boolean get() = downloadState.isActive
 
     val updateEnabled: Boolean get() = !busy && engineReady
+    /** 로그인 영역은 엔진 상태와 무관하게 쓸 수 있다 (작업 중에만 막음). */
+    val loginEnabled: Boolean get() = !busy
 
     fun toOptions() = DownloadOptions(mode, format.value, quality.value, embedThumbnail, embedMetadata, playlist)
 
@@ -48,16 +54,21 @@ data class MainUiState(
         mode = s.mode, audioFormat = s.audioFormat, audioQuality = s.audioQuality,
         videoFormat = s.videoFormat, videoResolution = s.videoResolution,
         embedThumbnail = s.embedThumbnail, embedMetadata = s.embedMetadata, playlist = s.playlist,
+        useCookies = s.useCookies,
     )
 
     fun toSettings(base: Settings) = base.copy(
         mode = mode, audioFormat = audioFormat, audioQuality = audioQuality,
         videoFormat = videoFormat, videoResolution = videoResolution,
         embedThumbnail = embedThumbnail, embedMetadata = embedMetadata, playlist = playlist,
+        useCookies = useCookies,
     )
 }
+
+enum class Screen { Main, Login }
 
 sealed interface MainDialog {
     data class EngineFailed(val message: String) : MainDialog
     data class UpdateResult(val message: String) : MainDialog
+    data object LogoutConfirm : MainDialog
 }

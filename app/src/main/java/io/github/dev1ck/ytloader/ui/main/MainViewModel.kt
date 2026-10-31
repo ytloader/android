@@ -1,6 +1,7 @@
 package io.github.dev1ck.ytloader.ui.main
 
 import android.app.Application
+import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,6 +12,7 @@ import io.github.dev1ck.ytloader.download.DownloadRequest
 import io.github.dev1ck.ytloader.download.DownloadService
 import io.github.dev1ck.ytloader.download.Mode
 import io.github.dev1ck.ytloader.engine.UpdateResult
+import io.github.dev1ck.ytloader.login.LoginState
 import io.github.dev1ck.ytloader.settings.Settings
 import io.github.dev1ck.ytloader.util.UrlExtractor
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +40,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _state.update { it.applySettings(loaded) }
         }
         viewModelScope.launch {
-            container.downloadRepository.state.collect { s -> _state.update { it.copy(downloadState = s) } }
+            container.downloadRepository.state.collect { s ->
+                val wasActive = _state.value.downloadState.isActive
+                _state.update { it.copy(downloadState = s) }
+                // yt-dlp가 실행 후 cookies.txt를 다시 쓰므로 끝나면 로그인 표시를 갱신한다.
+                if (wasActive && !s.isActive) container.cookieStore.refresh()
+            }
+        }
+        viewModelScope.launch {
+            container.cookieStore.state.collect { s -> _state.update { it.copy(loginState = s) } }
         }
         viewModelScope.launch {
             container.engineStatus.collect { status ->
@@ -70,6 +80,47 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setEmbedThumbnail(checked: Boolean) = edit { it.copy(embedThumbnail = checked) }
     fun setEmbedMetadata(checked: Boolean) = edit { it.copy(embedMetadata = checked) }
     fun setPlaylist(checked: Boolean) = edit { it.copy(playlist = checked) }
+    fun setUseCookies(checked: Boolean) = edit { it.copy(useCookies = checked) }
+
+    // ---- 로그인 (FR-9, FR-10) ----
+
+    fun openLogin() {
+        if (_state.value.loginEnabled) _state.update { it.copy(screen = Screen.Login) }
+    }
+
+    fun onLoginCancelled() {
+        _state.update { it.copy(screen = Screen.Main) }
+        showMessage(R.string.login_cancelled)
+    }
+
+    fun onLoginCookies(cookieHeader: String) {
+        viewModelScope.launch {
+            container.cookieStore.saveFromWebView(cookieHeader)
+            onLoggedIn(R.string.login_done)
+        }
+    }
+
+    fun importCookies(uri: Uri) {
+        viewModelScope.launch {
+            val ok = runCatching { container.cookieStore.import(uri) }.getOrDefault(false)
+            if (ok) onLoggedIn(R.string.cookies_imported) else showMessage(R.string.error_invalid_cookies)
+        }
+    }
+
+    // 데스크톱판과 같이 로그인하면 [로그인 쿠키 사용]을 켠다.
+    private fun onLoggedIn(@StringRes message: Int) {
+        _state.update { it.copy(screen = Screen.Main) }
+        edit { it.copy(useCookies = true) }
+        showMessage(message)
+    }
+
+    fun requestLogout() = _state.update { it.copy(dialog = MainDialog.LogoutConfirm) }
+
+    fun confirmLogout() {
+        container.cookieStore.logout()
+        _state.update { it.copy(dialog = null) }
+        showMessage(R.string.logout_done)
+    }
 
     private fun edit(change: (MainUiState) -> MainUiState) {
         val next = _state.updateAndGet(change)
@@ -110,7 +161,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val url = s.url.trim()
         if (url.isEmpty() || !s.downloadEnabled) return
         if (!container.downloadRepository.tryBegin()) return
-        DownloadService.start(getApplication(), DownloadRequest(url, s.toOptions(), cookieFile = null))
+        val cookieFile = container.cookieStore.file.takeIf { s.loginState is LoginState.LoggedIn && s.useCookies }
+        DownloadService.start(getApplication(), DownloadRequest(url, s.toOptions(), cookieFile?.absolutePath))
     }
 
     fun cancelDownload() = DownloadService.cancel(getApplication())

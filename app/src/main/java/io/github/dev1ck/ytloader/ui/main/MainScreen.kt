@@ -1,5 +1,7 @@
 package io.github.dev1ck.ytloader.ui.main
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,11 +26,13 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -51,6 +55,7 @@ import io.github.dev1ck.ytloader.R
 import io.github.dev1ck.ytloader.download.DownloadState
 import io.github.dev1ck.ytloader.download.FormatCatalog
 import io.github.dev1ck.ytloader.download.Mode
+import io.github.dev1ck.ytloader.login.LoginState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,6 +107,8 @@ fun MainScreen(
                 CheckRow(stringResource(R.string.option_metadata), state.embedMetadata, state.inputsEnabled, viewModel::setEmbedMetadata)
             }
             CheckRow(stringResource(R.string.option_playlist), state.playlist, state.inputsEnabled, viewModel::setPlaylist)
+
+            LoginSection(state, viewModel)
 
             ProgressArea(state)
 
@@ -225,6 +232,48 @@ private fun contentColor(enabled: Boolean) =
     if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
 
 @Composable
+private fun LoginSection(state: MainUiState, viewModel: MainViewModel) {
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::importCookies)
+    }
+    val enabled = state.loginEnabled
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.login_section_title), style = MaterialTheme.typography.titleSmall)
+            when (val login = state.loginState) {
+                LoginState.LoggedOut -> {
+                    Text(stringResource(R.string.login_state_logged_out), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = viewModel::openLogin, enabled = enabled) { Text(stringResource(R.string.login)) }
+                        OutlinedButton(onClick = { importLauncher.launch(arrayOf("text/plain", "*/*")) }, enabled = enabled) {
+                            Text(stringResource(R.string.import_cookies))
+                        }
+                    }
+                }
+                is LoginState.LoggedIn -> {
+                    Text(stringResource(R.string.login_state_logged_in, login.date), color = MaterialTheme.colorScheme.primary)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.toggleable(state.useCookies, enabled = enabled, role = Role.Switch, onValueChange = viewModel::setUseCookies),
+                    ) {
+                        Text(stringResource(R.string.use_cookies), color = contentColor(enabled), modifier = Modifier.weight(1f))
+                        Switch(checked = state.useCookies, onCheckedChange = null, enabled = enabled)
+                    }
+                    Text(
+                        stringResource(R.string.use_cookies_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        OutlinedButton(onClick = viewModel::requestLogout, enabled = enabled) { Text(stringResource(R.string.logout)) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ProgressArea(state: MainUiState) {
     val text = statusText(state) ?: return
     val progress = when (val d = state.downloadState) {
@@ -284,6 +333,13 @@ private fun Dialogs(state: MainUiState, viewModel: MainViewModel) {
             title = { Text(stringResource(R.string.dialog_error_title)) },
             text = { Text(stringResource(R.string.error_engine_init, dialog.message)) },
             confirmButton = { TextButton(onClick = viewModel::dismissDialog) { Text(stringResource(R.string.ok)) } },
+        )
+        MainDialog.LogoutConfirm -> AlertDialog(
+            onDismissRequest = viewModel::dismissDialog,
+            title = { Text(stringResource(R.string.logout)) },
+            text = { Text(stringResource(R.string.logout_confirm)) },
+            confirmButton = { TextButton(onClick = viewModel::confirmLogout) { Text(stringResource(R.string.logout)) } },
+            dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text(stringResource(R.string.cancel)) } },
         )
         is MainDialog.UpdateResult -> AlertDialog(
             onDismissRequest = viewModel::dismissDialog,
