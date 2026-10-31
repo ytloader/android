@@ -67,7 +67,7 @@ app/src/main/java/io/github/dev1ck/ytloader/
 ├─ AppContainer.kt             수동 DI: 아래 싱글턴들을 보관
 ├─ MainActivity.kt             단일 Activity. 공유 인텐트 수신, 화면 전환, 권한 요청
 ├─ ui/
-│  ├─ main/                    MainScreen, MainViewModel, MainUiState
+│  ├─ main/                    MainScreen, SettingsSheet(⚙ 시트), MainViewModel, MainUiState
 │  ├─ login/                   LoginScreen(WebView), LoginController
 │  └─ theme/
 ├─ download/
@@ -75,6 +75,7 @@ app/src/main/java/io/github/dev1ck/ytloader/
 │  ├─ DownloadOptions.kt       사용자 선택값 (순수 data class)
 │  ├─ YtDlpArgsBuilder.kt      DownloadOptions → List<YtOption> (순수)
 │  ├─ ProgressParser.kt        출력 줄 → 상태 문구/진행률 (순수)
+│  ├─ TitlePreview.kt          제목 미리보기 옵션·출력 해석 (순수, FR-14)
 │  ├─ ErrorHintMapper.kt       마지막 오류 → 안내 문구 (순수)
 │  ├─ DownloadState.kt         상태 모델
 │  ├─ DownloadRepository.kt    StateFlow<DownloadState> 공유 (서비스 ↔ UI)
@@ -133,6 +134,7 @@ interface YtDlpEngine {
         processId: String,
         onLine: (progress: Float, etaSec: Long, line: String) -> Unit,
     ): ExecResult                               // 블로킹. 호출자는 IO 스레드에서 호출
+    fun query(url: String, options: List<YtOption>, processId: String): String?  // stdout만, 실패·취소 null (FR-14)
     fun cancel(processId: String): Boolean
     fun update(): UpdateResult                  // STABLE 채널. 블로킹
 }
@@ -384,6 +386,19 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
 
 ## 11. UI 구조와 상태
 
+- **2026-10-31 UI 개편** (사용자 결정, SPEC 5장): 메인은 URL 카드 + 제목 카드 + 세그먼트 버튼(모드) +
+  가로 스크롤 FilterChip(포맷·품질) + 옵션 스위치 카드, 하단 고정 영역(결과 줄 + [다운로드] / 진행 패널).
+  로그인·yt-dlp 업데이트·저장 위치는 `SettingsSheet`(ModalBottomSheet). 테마는 고정 브랜드 색
+  (`ui/theme/Theme.kt`, 라이트·다크), 큰 모서리(16/24dp).
+  아이콘: 의존성 추가 없이 Material 아이콘 경로를 `res/drawable/ic_*.xml` 벡터로 넣는다
+  (material-icons-core에 없는 download·paste·music·movie·folder·link·open·playlist).
+  - 제목 미리보기(FR-14): `MainViewModel`이 입력 0.7초 후 `engine.query()`(`TitlePreview.options`)를
+    `title-<UUID>` processId로 실행, 새 입력·다운로드 시작 시 `engine.cancel()`로 취소.
+  - 클립보드 제안(FR-13): 화면이 포커스를 얻고 입력란이 비었을 때 `ClipDescription.timestamp`가
+    바뀌었을 때만 `primaryClip`을 읽는다(Android 12+ 알림 반복 방지). 판정은 `UrlExtractor.isYouTube`.
+  - 앱 아이콘: `docs/design/icon/`의 원본(GPT 생성)에서 투명 전경을 밀도별
+    `mipmap-*/ic_launcher_foreground.png`(108dp 기준, 글리프 82% 축소·중앙 정렬)로 만들고,
+    배경은 그라데이션 벡터 `drawable/ic_launcher_background.xml`, 단색 테마 아이콘은 같은 전경.
 - `MainActivity`: `launchMode="singleTask"` — YouTube 앱에서 공유해도 YouTube의 작업
   스택에 두 번째 인스턴스가 생기지 않게 한다. `onCreate`/`onNewIntent`에서 공유 인텐트를
   `UrlExtractor`로 처리해 ViewModel에 전달. 상태 `screen = Main | Login`으로 전환,

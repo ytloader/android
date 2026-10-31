@@ -16,14 +16,21 @@ import io.github.dev1ck.ytloader.engine.UpdateResult
 import io.github.dev1ck.ytloader.login.LoginState
 import io.github.dev1ck.ytloader.settings.Settings
 import io.github.dev1ck.ytloader.util.UrlExtractor
+import io.github.dev1ck.ytloader.download.TitlePreview
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
+
+private const val TITLE_DEBOUNCE_MS = 700L
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as YTLoaderApp).container
@@ -67,7 +74,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setUrl(url: String) = _state.update { it.copy(url = url) }
+    fun setUrl(url: String) {
+        _state.update { it.copy(url = url) }
+        scheduleTitlePreview()
+    }
+
     fun setMode(mode: Mode) = edit { it.copy(mode = mode) }
 
     fun setFormat(value: String) = edit {
@@ -80,8 +91,81 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setEmbedThumbnail(checked: Boolean) = edit { it.copy(embedThumbnail = checked) }
     fun setEmbedMetadata(checked: Boolean) = edit { it.copy(embedMetadata = checked) }
-    fun setPlaylist(checked: Boolean) = edit { it.copy(playlist = checked) }
+    fun setPlaylist(checked: Boolean) {
+        edit { it.copy(playlist = checked) }
+        scheduleTitlePreview() // 재생목록 이름 표시 여부가 바뀐다
+    }
+
     fun setUseCookies(checked: Boolean) = edit { it.copy(useCookies = checked) }
+
+    // ---- 제목 미리보기 ----
+
+    private var titleJob: Job? = null
+    @Volatile private var titleProcessId: String? = null
+
+    /** 입력이 멈추고 잠시 뒤 제목을 조회한다. 새 입력이 오면 이전 조회는 취소. */
+    private fun scheduleTitlePreview() {
+        stopTitlePreview()
+        val url = _state.value.url.trim()
+        if (UrlExtractor.extract(url) != url) {
+            _state.update { it.copy(titlePreview = TitleState.Idle) }
+            return
+        }
+        titleJob = viewModelScope.launch {
+            delay(TITLE_DEBOUNCE_MS)
+            if (container.engineStatus.first { it != EngineStatus.Initializing } != EngineStatus.Ready) return@launch
+            val s = _state.value
+            if (s.downloadState.isActive) return@launch
+            _state.update { it.copy(titlePreview = TitleState.Loading) }
+            val id = "title-" + UUID.randomUUID()
+            titleProcessId = id
+            val options = TitlePreview.options(s.playlist, cookieFileFor(s)?.absolutePath)
+            val info = withContext(Dispatchers.IO) { container.engine.query(url, options, id) }?.let(TitlePreview::parse)
+            titleProcessId = null
+            _state.update {
+                if (it.url.trim() != url) it
+                else it.copy(titlePreview = info?.let(TitleState::Loaded) ?: TitleState.Failed)
+            }
+        }
+    }
+
+    private fun stopTitlePreview() {
+        titleJob?.cancel()
+        titleJob = null
+        titleProcessId?.let { id -> viewModelScope.launch(Dispatchers.IO) { container.engine.cancel(id) } }
+        titleProcessId = null
+        _state.update { if (it.titlePreview == TitleState.Loading) it.copy(titlePreview = TitleState.Idle) else it }
+    }
+
+    // ---- 클립보드 제안 ----
+
+    private var dismissedSuggestion: String? = null
+
+    /** 화면이 포커스를 얻을 때 읽은 클립보드 텍스트. 입력란이 비어 있을 때만 YouTube 링크를 제안한다. */
+    fun onClipboardText(text: String?) {
+        val url = UrlExtractor.extract(text)
+        val suggest = url?.takeIf {
+            UrlExtractor.isYouTube(it) && it != dismissedSuggestion && _state.value.url.isBlank()
+        }
+        _state.update { it.copy(clipboardSuggestion = suggest) }
+    }
+
+    fun acceptClipboardSuggestion() {
+        val url = _state.value.clipboardSuggestion ?: return
+        dismissedSuggestion = url
+        _state.update { it.copy(clipboardSuggestion = null) }
+        setUrl(url)
+    }
+
+    fun dismissClipboardSuggestion() {
+        dismissedSuggestion = _state.value.clipboardSuggestion
+        _state.update { it.copy(clipboardSuggestion = null) }
+    }
+
+    fun showFailureDetail() = container.downloadRepository.reopenFailure()
+
+    private fun cookieFileFor(s: MainUiState) =
+        container.cookieStore.file.takeIf { s.loginState is LoginState.LoggedIn && s.useCookies }
 
     // ---- 로그인 (FR-9, FR-10) ----
 
@@ -146,7 +230,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             showMessage(R.string.error_no_url_in_share)
             return
         }
-        _state.update { it.copy(url = url) }
+        setUrl(url)
         if (_state.value.downloadState.isActive) showMessage(R.string.message_share_while_busy)
     }
 
@@ -162,7 +246,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val url = s.url.trim()
         if (url.isEmpty() || !s.downloadEnabled) return
         if (!container.downloadRepository.tryBegin()) return
-        val cookieFile = container.cookieStore.file.takeIf { s.loginState is LoginState.LoggedIn && s.useCookies }
+        stopTitlePreview() // 동시에 yt-dlp를 두 개 돌리지 않는다
+        val cookieFile = cookieFileFor(s)
         try {
             DownloadService.start(getApplication(), DownloadRequest(url, s.toOptions(), cookieFile?.absolutePath))
         } catch (e: IllegalStateException) {

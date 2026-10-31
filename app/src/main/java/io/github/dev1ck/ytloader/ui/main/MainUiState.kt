@@ -7,6 +7,7 @@ import io.github.dev1ck.ytloader.download.FormatCatalog
 import io.github.dev1ck.ytloader.download.FormatOption
 import io.github.dev1ck.ytloader.download.Mode
 import io.github.dev1ck.ytloader.download.QualityOption
+import io.github.dev1ck.ytloader.download.TitleInfo
 import io.github.dev1ck.ytloader.login.LoginState
 import io.github.dev1ck.ytloader.settings.Settings
 
@@ -30,6 +31,9 @@ data class MainUiState(
     val updating: Boolean = false,
     val dialog: MainDialog? = null,
     val message: String? = null,
+    val titlePreview: TitleState = TitleState.Idle,
+    /** 클립보드에 있는 YouTube 링크 (입력란이 비어 있을 때 제안). */
+    val clipboardSuggestion: String? = null,
 ) {
     val format: FormatOption
         get() = FormatCatalog.format(mode, if (mode == Mode.AUDIO) audioFormat else videoFormat)
@@ -66,6 +70,13 @@ data class MainUiState(
 }
 
 enum class Screen { Main, Login }
+
+sealed interface TitleState {
+    data object Idle : TitleState
+    data object Loading : TitleState
+    data class Loaded(val info: TitleInfo) : TitleState
+    data object Failed : TitleState
+}
 
 sealed interface MainDialog {
     data class EngineFailed(val message: String) : MainDialog

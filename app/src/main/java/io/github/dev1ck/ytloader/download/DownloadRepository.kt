@@ -26,4 +26,9 @@ class DownloadRepository {
     fun acknowledgeFailure() {
         _state.update { if (it is DownloadState.Failed) it.copy(acknowledged = true) else it }
     }
+
+    /** 닫은 오류 대화상자를 다시 연다. */
+    fun reopenFailure() {
+        _state.update { if (it is DownloadState.Failed) it.copy(acknowledged = false) else it }
+    }
 }

@@ -99,6 +99,14 @@
 - [x] release 빌드(arm64-v8a, 서명), README(설치·사용법·Play 미배포 이유)
 - [x] 완료 조건: `.\gradlew.bat testDebugUnitTest lintRelease assembleRelease` 성공
 
+## M7 UI/UX 개편 (2026-10-31 사용자 요청)
+
+- [x] 사용자 결정: 화면 구조 A(칩 + 하단 고정 버튼, 로그인·업데이트는 ⚙ 설정 시트), 고정 브랜드 색,
+      추가 기능 FR-12 [열기] · FR-13 클립보드 제안 · FR-14 제목 미리보기 (SPEC 4·5장 갱신)
+- [x] 테마·메인 화면·설정 시트·벡터 아이콘, ViewModel(제목 조회·클립보드), 엔진 `query()`
+- [x] 앱 아이콘: 사용자가 GPT로 만든 원본 → `docs/design/icon/`, 적응형 아이콘 적용
+- [x] 완료 조건: 단위 테스트·린트·릴리스 빌드 통과, 에뮬레이터 스크린샷, 실기기 릴리스 앱 업데이트
+
 ---
 
 ## 작업 로그
@@ -321,3 +329,26 @@
 - 테스트 중에만 `stay_on_while_plugged_in`을 켰고(원래 0) 끝난 뒤 0으로 되돌림. 휴대폰의 테스트 파일은 삭제.
   휴대폰에는 현재 **릴리스 서명 앱**이 설치돼 있음(디버그 앱은 제거).
 - 남은 것 (사용자 직접): YouTube 앱 → 공유, 실제 계정 앱 내 로그인 → 비공개/연령 제한 영상(SPEC O-1), 데스크톱판 cookies.txt 가져오기.
+
+### 2026-10-31 M7 UI/UX 개편
+
+- 화면: URL 카드(붙여넣기/지우기 아이콘, 키보드 완료 시 닫힘) → 클립보드 제안 칩 → 제목 카드 →
+  세그먼트(오디오만/영상+오디오) → 포맷·품질 FilterChip(가로 스크롤) → 옵션 스위치 카드(설명 포함),
+  하단 고정 영역(결과 줄 + [다운로드] / 진행 패널 퍼센트·상세·[취소]). 앱바에 로그인 칩 + ⚙.
+  설정 시트: 로그인·쿠키·로그아웃, yt-dlp 버전·[업데이트], 저장 위치, 버전·라이선스.
+- 테마: 고정 브랜드 색(라이트·다크), 모서리 12/16/24/32dp. 기기 배경화면 색은 쓰지 않음.
+- 새 순수 로직: `TitlePreview`(옵션: `--simulate --flat-playlist --playlist-items 1 --yes/--no-playlist
+  --no-warnings [--cookies] --print "%(playlist_title|)s<TAB>%(title)s"`, 출력 해석), `UrlExtractor.isYouTube`.
+  엔진 `query()`(stderr 합치지 않음). 다운로드 골든 예제(E1–E8)는 변경 없음.
+- 아이콘: 사용자 업로드 2장 평가 — ① 완성 아이콘 콘셉트·안전 영역 적합, 세로 1% 아래 치우침,
+  ② 전경은 실제 투명 PNG(1254px, 32bpp). → `docs/design/icon/icon-full-source.png`,
+  `icon-foreground-source.png`로 이름 변경·이동, `icon-512.png`(README용) 생성.
+  전경을 중앙 정렬·82% 축소해 mipmap 5종(108–432px) 생성(첫 시도 100%는 원형 마스크에서 너무 커 보여 축소),
+  배경은 원본 색(#FD6F53→#EC3B47→#D30839) 그라데이션 벡터, 단색 테마 아이콘 = 같은 전경. 이전 벡터 아이콘 삭제.
+- 증거 (에뮬레이터, `build/r1_*.png`): 빈 화면 `r1_main_empty`, 클립보드 제안 `r1_suggestion`,
+  제목 미리보기(제안 칩 → 9.4초 후 "Me at the zoo") `r1_title`, 영상 모드 진행 패널 `r1_progress`(15% ...),
+  완료 + [열기] `r1_done`([열기] → Google Photos로 열림), 설정 시트 `r1_settings`, 다크 모드 `r1_dark`,
+  런처 아이콘 `r1_launcher`.
+- 수정: 린트 오류(LocalContext로 문자열 조회) → `stringResource`로 변경.
+- 알려진 동작: 화면에 떠 있는 상태에서 앱을 재설치(프로세스 강제 종료)하면 다음 실행 때 처음 받은
+  공유 인텐트를 다시 처리할 수 있음(저장 상태가 없어서). 일반 사용(백그라운드 종료)에서는 해당 없음.

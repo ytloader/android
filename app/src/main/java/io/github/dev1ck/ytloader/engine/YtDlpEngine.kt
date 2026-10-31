@@ -31,6 +31,9 @@ interface YtDlpEngine {
         onLine: (progress: Float, etaSec: Long, line: String) -> Unit,
     ): ExecResult
 
+    /** 제목 미리보기용으로 yt-dlp를 실행하고 stdout을 돌려준다. 실패·취소면 null. 블로킹. */
+    fun query(url: String, options: List<YtOption>, processId: String): String?
+
     fun cancel(processId: String): Boolean
 
     /** STABLE 채널. 블로킹. */

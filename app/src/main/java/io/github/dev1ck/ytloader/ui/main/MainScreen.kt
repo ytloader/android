@@ -1,7 +1,13 @@
 package io.github.dev1ck.ytloader.ui.main
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import android.content.ActivityNotFoundException
+import android.content.ClipDescription
+import android.content.ClipboardManager
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,46 +15,76 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.dev1ck.ytloader.EngineStatus
 import io.github.dev1ck.ytloader.R
@@ -72,9 +108,31 @@ fun MainScreen(
             viewModel.messageShown()
         }
     }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    ClipboardWatcher(enabled = state.url.isBlank(), onText = viewModel::onClipboardText)
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold) },
+                actions = {
+                    if (state.loginState is LoginState.LoggedIn) {
+                        AssistChip(
+                            onClick = { showSettings = true },
+                            label = { Text(stringResource(R.string.chip_logged_in)) },
+                            leadingIcon = {
+                                Icon(Icons.Filled.CheckCircle, null, Modifier.size(AssistChipDefaults.IconSize))
+                            },
+                        )
+                    }
+                    IconButton(onClick = { showSettings = true }) {
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+            )
+        },
+        bottomBar = { BottomActionArea(state, viewModel, onDownloadClick) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
@@ -82,233 +140,423 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            UrlRow(state, viewModel)
-            ModeRow(state, viewModel)
-            Dropdown(
-                label = stringResource(R.string.label_format),
-                selected = state.format.label,
+            UrlSection(state, viewModel)
+            ModeSelector(state, viewModel)
+            ChipSection(
+                title = stringResource(R.string.label_format),
                 options = FormatCatalog.formats(state.mode).map { it.value to it.label },
+                selected = state.format.value,
                 enabled = state.inputsEnabled,
                 onSelect = viewModel::setFormat,
             )
-            Dropdown(
-                label = stringResource(if (state.mode == Mode.AUDIO) R.string.label_audio_quality else R.string.label_resolution),
-                selected = state.quality.label,
+            ChipSection(
+                title = stringResource(if (state.mode == Mode.AUDIO) R.string.label_audio_quality else R.string.label_resolution),
                 options = FormatCatalog.qualities(state.mode).map { it.value to it.label },
+                selected = state.quality.value,
                 enabled = state.qualityEnabled,
                 onSelect = viewModel::setQuality,
+                helper = if (!state.format.hasQuality) stringResource(R.string.helper_no_quality) else null,
             )
-            Row {
-                CheckRow(stringResource(R.string.option_thumbnail), state.embedThumbnail, state.thumbnailEnabled, viewModel::setEmbedThumbnail)
-                Spacer(Modifier.width(16.dp))
-                CheckRow(stringResource(R.string.option_metadata), state.embedMetadata, state.inputsEnabled, viewModel::setEmbedMetadata)
-            }
-            CheckRow(stringResource(R.string.option_playlist), state.playlist, state.inputsEnabled, viewModel::setPlaylist)
-
-            LoginSection(state, viewModel)
-
-            ProgressArea(state)
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = viewModel::cancelDownload, enabled = state.cancelEnabled, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.cancel))
-                }
-                Button(onClick = onDownloadClick, enabled = state.downloadEnabled, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.download))
-                }
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = state.ytDlpVersion?.let { "v$it" } ?: stringResource(R.string.version_unknown),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f),
-                )
-                OutlinedButton(onClick = viewModel::updateYtDlp, enabled = state.updateEnabled) {
-                    Text(stringResource(R.string.update_ytdlp))
-                }
-            }
+            OptionsCard(state, viewModel)
+            Spacer(Modifier.height(8.dp))
         }
     }
 
+    if (showSettings) SettingsSheet(state, viewModel, onDismiss = { showSettings = false })
     Dialogs(state, viewModel)
 }
 
+// ---- 입력 ----
+
 @Composable
-private fun UrlRow(state: MainUiState, viewModel: MainViewModel) {
+private fun UrlSection(state: MainUiState, viewModel: MainViewModel) {
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.animateContentSize()) {
         OutlinedTextField(
             value = state.url,
             onValueChange = viewModel::setUrl,
-            label = { Text(stringResource(R.string.label_url)) },
-            singleLine = true,
-            enabled = state.inputsEnabled,
-            modifier = Modifier.weight(1f),
-        )
-        Spacer(Modifier.width(8.dp))
-        OutlinedButton(
-            onClick = {
-                scope.launch {
-                    val text = clipboard.getClipEntry()?.clipData?.takeIf { it.itemCount > 0 }
-                        ?.getItemAt(0)?.coerceToText(context)?.toString()
-                    if (!text.isNullOrEmpty()) viewModel.setUrl(text)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+            placeholder = { Text(stringResource(R.string.url_placeholder), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            leadingIcon = { Icon(painterResource(R.drawable.ic_link), null) },
+            trailingIcon = {
+                if (state.url.isEmpty()) {
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                val text = clipboard.getClipEntry()?.clipData?.takeIf { it.itemCount > 0 }
+                                    ?.getItemAt(0)?.coerceToText(context)?.toString()
+                                if (!text.isNullOrEmpty()) viewModel.setUrl(text.trim())
+                                focusManager.clearFocus()
+                            }
+                        },
+                        enabled = state.inputsEnabled,
+                    ) { Icon(painterResource(R.drawable.ic_paste), stringResource(R.string.paste)) }
+                } else {
+                    IconButton(onClick = { viewModel.setUrl("") }, enabled = state.inputsEnabled) {
+                        Icon(Icons.Filled.Clear, stringResource(R.string.clear))
+                    }
                 }
             },
+            singleLine = true,
             enabled = state.inputsEnabled,
-        ) { Text(stringResource(R.string.paste)) }
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        AnimatedVisibility(visible = state.clipboardSuggestion != null && state.url.isBlank()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AssistChip(
+                    onClick = {
+                        viewModel.acceptClipboardSuggestion()
+                        focusManager.clearFocus()
+                    },
+                    label = {
+                        Text(
+                            stringResource(R.string.clipboard_suggestion, shortUrl(state.clipboardSuggestion.orEmpty())),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_paste), null, Modifier.size(AssistChipDefaults.IconSize)) },
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                IconButton(onClick = viewModel::dismissClipboardSuggestion) {
+                    Icon(Icons.Filled.Close, stringResource(R.string.close))
+                }
+            }
+        }
+
+        TitlePreviewRow(state)
     }
 }
 
 @Composable
-private fun ModeRow(state: MainUiState, viewModel: MainViewModel) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.label_mode), modifier = Modifier.width(56.dp))
-        for ((mode, label) in listOf(Mode.AUDIO to R.string.mode_audio, Mode.VIDEO to R.string.mode_video)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .selectable(state.mode == mode, enabled = state.inputsEnabled, role = Role.RadioButton) { viewModel.setMode(mode) }
-                    .padding(end = 12.dp),
-            ) {
-                RadioButton(selected = state.mode == mode, onClick = null, enabled = state.inputsEnabled)
-                Text(stringResource(label), color = contentColor(state.inputsEnabled))
+private fun TitlePreviewRow(state: MainUiState) {
+    when (val preview = state.titlePreview) {
+        TitleState.Idle -> Unit
+        TitleState.Loading -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
+            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.width(10.dp))
+            Text(stringResource(R.string.title_loading), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        TitleState.Failed -> Text(
+            stringResource(R.string.title_failed),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+        is TitleState.Loaded -> Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            val playlistTitle = preview.info.playlistTitle.takeIf { state.playlist }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(14.dp)) {
+                Icon(
+                    painterResource(
+                        when {
+                            playlistTitle != null -> R.drawable.ic_playlist
+                            state.mode == Mode.AUDIO -> R.drawable.ic_music
+                            else -> R.drawable.ic_movie
+                        },
+                    ),
+                    null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        playlistTitle ?: preview.info.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (playlistTitle != null) {
+                        Text(
+                            stringResource(R.string.title_playlist),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
+                }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Dropdown(
-    label: String,
-    selected: String,
+private fun ModeSelector(state: MainUiState, viewModel: MainViewModel) {
+    val modes = listOf(
+        Triple(Mode.AUDIO, R.string.mode_audio, R.drawable.ic_music),
+        Triple(Mode.VIDEO, R.string.mode_video, R.drawable.ic_movie),
+    )
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        modes.forEachIndexed { index, (mode, label, icon) ->
+            SegmentedButton(
+                selected = state.mode == mode,
+                onClick = { viewModel.setMode(mode) },
+                shape = SegmentedButtonDefaults.itemShape(index, modes.size),
+                enabled = state.inputsEnabled,
+                icon = { Icon(painterResource(icon), null, Modifier.size(18.dp)) },
+            ) { Text(stringResource(label)) }
+        }
+    }
+}
+
+@Composable
+private fun ChipSection(
+    title: String,
     options: List<Pair<String, String>>,
+    selected: String,
     enabled: Boolean,
     onSelect: (String) -> Unit,
+    helper: String? = null,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expanded && enabled, onExpandedChange = { if (enabled) expanded = it }) {
-        OutlinedTextField(
-            value = selected,
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && enabled) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled),
-        )
-        ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
-            for ((value, text) in options) {
-                DropdownMenuItem(text = { Text(text) }, onClick = {
-                    onSelect(value)
-                    expanded = false
-                })
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        SectionLabel(title)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+        ) {
+            for ((value, label) in options) {
+                val isSelected = value == selected
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onSelect(value) },
+                    label = { Text(label) },
+                    enabled = enabled,
+                    leadingIcon = if (isSelected) {
+                        { Icon(Icons.Filled.Done, null, Modifier.size(FilterChipDefaults.IconSize)) }
+                    } else null,
+                )
             }
+        }
+        if (helper != null) {
+            Text(helper, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
-private fun CheckRow(label: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.toggleable(checked, enabled = enabled, role = Role.Checkbox, onValueChange = onChange),
+private fun OptionsCard(state: MainUiState, viewModel: MainViewModel) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        shape = MaterialTheme.shapes.large,
     ) {
-        Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
-        Text(label, color = contentColor(enabled))
+        OptionRow(
+            title = stringResource(R.string.option_thumbnail),
+            subtitle = stringResource(
+                if (state.format.supportsThumbnail) R.string.option_thumbnail_desc else R.string.option_thumbnail_unsupported,
+            ),
+            checked = state.embedThumbnail && state.format.supportsThumbnail,
+            enabled = state.thumbnailEnabled,
+            onChange = viewModel::setEmbedThumbnail,
+        )
+        HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+        OptionRow(
+            title = stringResource(R.string.option_metadata),
+            subtitle = stringResource(R.string.option_metadata_desc),
+            checked = state.embedMetadata,
+            enabled = state.inputsEnabled,
+            onChange = viewModel::setEmbedMetadata,
+        )
+        HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+        OptionRow(
+            title = stringResource(R.string.option_playlist),
+            subtitle = stringResource(R.string.option_playlist_desc),
+            checked = state.playlist,
+            enabled = state.inputsEnabled,
+            onChange = viewModel::setPlaylist,
+        )
     }
 }
 
 @Composable
-private fun contentColor(enabled: Boolean) =
-    if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+internal fun OptionRow(title: String, subtitle: String?, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = subtitle?.let { { Text(it) } },
+        trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
+        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+        modifier = Modifier.toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = onChange),
+    )
+}
 
 @Composable
-private fun LoginSection(state: MainUiState, viewModel: MainViewModel) {
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let(viewModel::importCookies)
-    }
-    val enabled = state.loginEnabled
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.login_section_title), style = MaterialTheme.typography.titleSmall)
-            when (val login = state.loginState) {
-                LoginState.LoggedOut -> {
-                    Text(stringResource(R.string.login_state_logged_out), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = viewModel::openLogin, enabled = enabled) { Text(stringResource(R.string.login)) }
-                        OutlinedButton(onClick = { importLauncher.launch(arrayOf("text/plain", "*/*")) }, enabled = enabled) {
-                            Text(stringResource(R.string.import_cookies))
+internal fun SectionLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+// ---- 하단 동작 영역 ----
+
+@Composable
+private fun BottomActionArea(state: MainUiState, viewModel: MainViewModel, onDownloadClick: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 3.dp) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 14.dp)
+                .animateContentSize(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            val download = state.downloadState
+            if (download.isActive) {
+                ProgressPanel(download, viewModel)
+            } else {
+                ResultRow(state, viewModel)
+                Button(
+                    onClick = onDownloadClick,
+                    enabled = state.downloadEnabled,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                ) {
+                    when {
+                        state.updating || state.engineStatus == EngineStatus.Initializing -> {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(10.dp))
+                            Text(stringResource(if (state.updating) R.string.status_updating else R.string.status_engine_initializing))
+                        }
+                        else -> {
+                            Icon(painterResource(R.drawable.ic_download), null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.download), style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
-                is LoginState.LoggedIn -> {
-                    Text(stringResource(R.string.login_state_logged_in, login.date), color = MaterialTheme.colorScheme.primary)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.toggleable(state.useCookies, enabled = enabled, role = Role.Switch, onValueChange = viewModel::setUseCookies),
-                    ) {
-                        Text(stringResource(R.string.use_cookies), color = contentColor(enabled), modifier = Modifier.weight(1f))
-                        Switch(checked = state.useCookies, onCheckedChange = null, enabled = enabled)
-                    }
-                    Text(
-                        stringResource(R.string.use_cookies_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        OutlinedButton(onClick = viewModel::requestLogout, enabled = enabled) { Text(stringResource(R.string.logout)) }
-                    }
-                }
             }
         }
     }
 }
 
 @Composable
-private fun ProgressArea(state: MainUiState) {
-    val text = statusText(state) ?: return
-    val progress = when (val d = state.downloadState) {
-        is DownloadState.Running -> d.progress / 100f
-        is DownloadState.PostProcessing, is DownloadState.Succeeded -> 1f
-        else -> 0f
+private fun ProgressPanel(download: DownloadState, viewModel: MainViewModel) {
+    val (headline, detail, progress) = when (download) {
+        is DownloadState.Running -> Triple("${download.progress.toInt()}%", download.text, download.progress / 100f)
+        is DownloadState.PostProcessing -> Triple(stringResource(R.string.progress_postprocessing), download.text, null)
+        else -> Triple(stringResource(R.string.progress_preparing), stringResource(R.string.status_preparing), null)
     }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (state.downloadState !is DownloadState.Idle) {
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(6.dp))
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(headline, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
-        Text(text, style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.width(12.dp))
+        OutlinedButton(onClick = viewModel::cancelDownload) { Text(stringResource(R.string.cancel)) }
+    }
+    if (progress != null) {
+        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(8.dp))
+    } else {
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(8.dp))
     }
 }
 
 @Composable
-private fun statusText(state: MainUiState): String? {
+private fun ResultRow(state: MainUiState, viewModel: MainViewModel) {
+    val context = LocalContext.current
+    val noApp = stringResource(R.string.error_no_app_to_open)
     val savedCount = when (val d = state.downloadState) {
         is DownloadState.Failed -> d.savedCount
         is DownloadState.Cancelled -> d.savedCount
         else -> 0
     }
     val saved = if (savedCount > 0) " " + stringResource(R.string.status_saved_suffix, savedCount) else ""
-    if (state.updating) return stringResource(R.string.status_updating)
-    return when (val d = state.downloadState) {
-        DownloadState.Idle ->
-            if (state.engineStatus == EngineStatus.Initializing) stringResource(R.string.status_engine_initializing) else null
-        DownloadState.Preparing -> stringResource(R.string.status_preparing)
-        is DownloadState.Running -> d.text
-        is DownloadState.PostProcessing -> d.text
-        is DownloadState.Succeeded -> stringResource(R.string.status_succeeded)
-        is DownloadState.Failed -> stringResource(R.string.status_failed) + saved
-        is DownloadState.Cancelled -> stringResource(R.string.status_cancelled) + saved
+    when (val d = state.downloadState) {
+        is DownloadState.Succeeded -> ResultLine(
+            icon = Icons.Filled.CheckCircle,
+            text = stringResource(R.string.status_succeeded),
+            action = d.uris.firstOrNull()?.let { uri ->
+                ResultAction(stringResource(R.string.open), R.drawable.ic_open) { openFile(context, uri) { viewModel.showMessage(noApp) } }
+            },
+        )
+        is DownloadState.Failed -> ResultLine(
+            icon = Icons.Filled.Warning,
+            text = stringResource(R.string.status_failed_short) + saved,
+            action = ResultAction(stringResource(R.string.details), null, viewModel::showFailureDetail),
+            isError = true,
+        )
+        is DownloadState.Cancelled -> ResultLine(
+            icon = Icons.Filled.Close,
+            text = stringResource(R.string.status_cancelled) + saved,
+            action = null,
+        )
+        else -> Unit
     }
 }
+
+private data class ResultAction(val label: String, val icon: Int?, val onClick: () -> Unit)
+
+@Composable
+private fun ResultLine(icon: ImageVector, text: String, action: ResultAction?, isError: Boolean = false) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            icon, null,
+            tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        if (action != null) {
+            TextButton(onClick = action.onClick) {
+                if (action.icon != null) {
+                    Icon(painterResource(action.icon), null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(action.label)
+            }
+        }
+    }
+}
+
+private fun openFile(context: android.content.Context, uri: Uri, onNoApp: () -> Unit) {
+    val intent = Intent(Intent.ACTION_VIEW)
+        .setDataAndType(uri, context.contentResolver.getType(uri) ?: "*/*")
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    try {
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        onNoApp()
+    }
+}
+
+/** `https://www.youtube.com/watch?v=x` → `youtube.com/watch?v=x` */
+private fun shortUrl(url: String) = url.removePrefix("https://").removePrefix("http://").removePrefix("www.")
+
+/**
+ * 화면이 포커스를 얻을 때 클립보드를 확인한다(Android 10+는 포커스가 있어야 읽을 수 있음).
+ * 클립보드가 바뀌었을 때만 내용을 읽어, Android 12+의 "붙여넣음" 알림이 반복해서 뜨지 않게 한다.
+ */
+@Composable
+private fun ClipboardWatcher(enabled: Boolean, onText: (String?) -> Unit) {
+    val context = LocalContext.current
+    val focused = LocalWindowInfo.current.isWindowFocused
+    var lastTimestamp by remember { mutableLongStateOf(-1L) }
+    LaunchedEffect(focused, enabled) {
+        if (!focused || !enabled) return@LaunchedEffect
+        val manager = context.getSystemService(ClipboardManager::class.java) ?: return@LaunchedEffect
+        val description = manager.primaryClipDescription ?: return@LaunchedEffect
+        if (description.timestamp == lastTimestamp) return@LaunchedEffect
+        lastTimestamp = description.timestamp
+        if (!description.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN) && !description.hasMimeType("text/*")) return@LaunchedEffect
+        onText(manager.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString())
+    }
+}
+
+// ---- 대화상자 ----
 
 @Composable
 private fun Dialogs(state: MainUiState, viewModel: MainViewModel) {
@@ -322,6 +570,7 @@ private fun Dialogs(state: MainUiState, viewModel: MainViewModel) {
         }
         AlertDialog(
             onDismissRequest = viewModel::acknowledgeFailure,
+            icon = { Icon(Icons.Filled.Warning, null) },
             title = { Text(stringResource(R.string.dialog_download_failed_title)) },
             text = { Text(body) },
             confirmButton = { TextButton(onClick = viewModel::acknowledgeFailure) { Text(stringResource(R.string.ok)) } },

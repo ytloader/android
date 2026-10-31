@@ -26,6 +26,17 @@ class UrlExtractorTest {
         assertEquals("https://youtu.be/x?t=1", UrlExtractor.extract("보세요: https://youtu.be/x?t=1!?"))
     }
 
+    @Test fun youtubeHosts() {
+        assertEquals(true, UrlExtractor.isYouTube("https://youtu.be/jNQXAC9IVRw"))
+        assertEquals(true, UrlExtractor.isYouTube("https://www.youtube.com/watch?v=x"))
+        assertEquals(true, UrlExtractor.isYouTube("https://m.youtube.com/watch?v=x"))
+        assertEquals(true, UrlExtractor.isYouTube("https://music.youtube.com/playlist?list=y"))
+        assertEquals(true, UrlExtractor.isYouTube("HTTPS://YOUTU.BE/x"))
+        assertEquals(false, UrlExtractor.isYouTube("https://notyoutube.com/watch?v=x"))
+        assertEquals(false, UrlExtractor.isYouTube("https://example.com/?u=https://youtu.be/x"))
+        assertEquals(false, UrlExtractor.isYouTube("https://youtube.com.evil.example/x"))
+    }
+
     @Test fun newlineSeparated() =
         assertEquals("https://youtu.be/x", UrlExtractor.extract("제목\nhttps://youtu.be/x\n"))
 }

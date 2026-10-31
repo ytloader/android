@@ -5,6 +5,7 @@ import android.util.Log
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
+import io.github.dev1ck.ytloader.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -35,10 +36,7 @@ class YoutubeDlAndroidEngine(private val context: Context) : YtDlpEngine {
         processId: String,
         onLine: (progress: Float, etaSec: Long, line: String) -> Unit,
     ): ExecResult {
-        val request = YoutubeDLRequest(url)
-        for (option in options) {
-            if (option.value == null) request.addOption(option.name) else request.addOption(option.name, option.value)
-        }
+        val request = request(url, options)
         var lastError: String? = null
         return try {
             // stderr도 콜백으로 받아 ERROR: 줄을 놓치지 않는다 (실패 시 예외 메시지는 비어 있음).
@@ -54,6 +52,20 @@ class YoutubeDlAndroidEngine(private val context: Context) : YtDlpEngine {
         } catch (e: Exception) {
             val fallback = e.message?.lines()?.lastOrNull { it.isNotBlank() } ?: e.javaClass.simpleName
             ExecResult(null, lastError ?: fallback, cancelled = false)
+        }
+    }
+
+    // stdout만 필요하므로 stderr를 합치지 않는다.
+    override fun query(url: String, options: List<YtOption>, processId: String): String? = try {
+        ytdl.execute(request(url, options), processId, false, null).out
+    } catch (e: Exception) {
+        if (BuildConfig.DEBUG) Log.d(TAG, "query failed: ${e.javaClass.simpleName}")
+        null
+    }
+
+    private fun request(url: String, options: List<YtOption>) = YoutubeDLRequest(url).apply {
+        for (option in options) {
+            if (option.value == null) addOption(option.name) else addOption(option.name, option.value)
         }
     }
 
