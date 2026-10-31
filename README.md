@@ -65,6 +65,29 @@ keyAlias=ytloader
 keyPassword=...
 ```
 
+## 릴리스
+
+`v*` 태그를 push하면 GitHub Actions([release.yml](.github/workflows/release.yml))가 테스트·린트·서명 빌드를 하고
+`YTLoader-<버전>.apk`를 붙인 릴리스 **초안**을 만듭니다. 초안을 확인하고 [Publish]하면 앱의 업데이트 배너에 나타납니다.
+
+```powershell
+# 1. app/build.gradle.kts의 versionCode(+1)·versionName을 올려 커밋 (태그와 versionName이 다르면 실패)
+git tag v0.2.0
+git push origin main v0.2.0
+```
+
+처음 한 번 저장소 Secrets를 등록합니다 (비밀번호는 프롬프트에 붙여넣기, 화면·기록에 남지 않음).
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("<키스토어 경로>.jks")) | gh secret set KEYSTORE_BASE64
+gh secret set KEYSTORE_PASSWORD
+gh secret set KEY_ALIAS --body ytloader
+gh secret set KEY_PASSWORD
+```
+
+워크플로는 서명 인증서가 기존 키(SHA-256 `9d45d10c…`)와 같은지 확인합니다. 다른 키로 서명된 APK는
+기존 설치본을 업데이트할 수 없기 때문입니다.
+
 설계 문서: [docs/SPEC.md](docs/SPEC.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## 라이선스
