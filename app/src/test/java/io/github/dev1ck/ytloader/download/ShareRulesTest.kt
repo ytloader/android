@@ -10,6 +10,20 @@ class ShareRulesTest {
         assertEquals("primary:Download/YTLoader", ShareRules.folderDocumentId(""))
         assertEquals("primary:Download/YTLoader/Team Fortress 2", ShareRules.folderDocumentId("Team Fortress 2"))
         assertEquals("primary:Download/YTLoader/a", ShareRules.folderDocumentId("/a/"))
+        assertEquals("primary:Music/YT", ShareRules.folderDocumentId(null, "primary:Music/YT"))
+        assertEquals("primary:Music/YT/PL", ShareRules.folderDocumentId("PL", "primary:Music/YT"))
+        assertEquals("1A2B-3C4D:PL", ShareRules.folderDocumentId("PL", "1A2B-3C4D:"))
+    }
+
+    @Test fun locationLabel() {
+        assertEquals("Download/YTLoader", ShareRules.locationLabel(null))
+        assertEquals("Download/YTLoader/PL", ShareRules.locationLabel(null, "PL"))
+        assertEquals("Music/YT", ShareRules.locationLabel("primary:Music/YT"))
+        assertEquals("Music/YT/PL", ShareRules.locationLabel("primary:Music/YT", "PL"))
+        assertEquals("내부 저장소", ShareRules.locationLabel("primary:"))
+        assertEquals("1A2B-3C4D/Music", ShareRules.locationLabel("1A2B-3C4D:Music"))
+        assertEquals("1A2B-3C4D", ShareRules.locationLabel("1A2B-3C4D:"))
+        assertEquals("opaque-id", ShareRules.locationLabel("opaque-id"))
     }
 
     @Test fun shareMimeType() {

@@ -75,13 +75,13 @@ app/src/main/java/io/github/dev1ck/ytloader/
 │  ├─ DownloadOptions.kt       사용자 선택값 (순수 data class)
 │  ├─ YtDlpArgsBuilder.kt      DownloadOptions → List<YtOption> (순수)
 │  ├─ ProgressParser.kt        출력 줄 → 상태 문구/진행률 (순수)
-│  ├─ TitlePreview.kt          제목 미리보기 옵션·출력 해석 (순수, FR-14)
+│  ├─ TitlePreview.kt          영상 정보 미리보기 옵션·출력 해석·표시 문구 (순수, FR-14)
 │  ├─ ErrorHintMapper.kt       마지막 오류 → 안내 문구 (순수)
 │  ├─ DownloadState.kt         상태 모델
 │  ├─ DownloadRepository.kt    StateFlow<DownloadState> 공유 (서비스 ↔ UI)
 │  ├─ DownloadService.kt       포그라운드 서비스: 실행·취소·알림·타임아웃
 │  ├─ DownloadNotifications.kt 알림 채널/빌더
-│  └─ MediaStoreExporter.kt    작업 폴더 → Download/YTLoader 복사
+│  └─ MediaStoreExporter.kt    작업 폴더 → 저장 위치 복사 (Exporter: MediaStore 기본 / SAF 트리)
 ├─ login/
 │  ├─ CookieStore.kt           cookies.txt 경로·상태·삭제, 로그아웃
 │  ├─ NetscapeCookieWriter.kt  쿠키 → Netscape 텍스트 (순수)
@@ -304,7 +304,8 @@ start(요청)                                  cancel
 
 ## 8. 저장 (MediaStore)
 
-**[결정] `MediaStore.Downloads`, `RELATIVE_PATH = "Download/YTLoader/<하위 경로>"`.**
+**[결정] 기본 위치는 `MediaStore.Downloads`, `RELATIVE_PATH = "Download/YTLoader/<하위 경로>"`.**
+**[결정] (2026-10-31 사용자 결정) 설정에서 SAF 트리 폴더를 고르면 그 아래에 저장한다** (아래 "사용자 폴더").
 Music/Movies 컬렉션은 MIME과 확장자 규칙이 엄격해(.opus, .mkv 등에서 확장자 변경 위험)
 Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한다.
 
@@ -323,6 +324,20 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
 - M3에서 각 포맷(mp3, m4a, opus, flac, wav, mp4, mkv, webm, original)의 **최종 파일명이
   확장자까지 유지되는지** 확인하고 결과를 작업 로그에 남긴다. → 확인됨 (2026-10-31, 10종 모두
   유지, 같은 이름은 ` (1)`로 자동 변경). MIME은 `MimeTypeMap` 그대로 써도 된다.
+
+### 사용자 폴더 (SAF 트리)
+
+- 설정 시트 [변경] → `ActivityResultContracts.OpenDocumentTree` → `takePersistableUriPermission(READ|WRITE)`,
+  이전 폴더 권한은 `releasePersistableUriPermission`. 트리 URI 문자열을 설정 `save_folder`에 저장(null = 기본).
+- 다운로드 시작 시 `DownloadRequest.saveFolder`로 넘긴다(진행 중에 바꿔도 시작할 때의 위치에 저장).
+- `DocumentTreeExporter`: 하위 경로의 각 단계는 같은 이름 폴더를 찾아 쓰고 없으면 `createDocument(MIME_TYPE_DIR)`,
+  파일은 `createDocument(mime, 파일명)` → 스트림 복사, 실패 시 `deleteDocument`. 같은 이름이면 문서 제공자가
+  ` (1)`을 붙인다(에뮬레이터 확인). MIME은 확장자에서 얻으므로 제공자가 확장자를 바꾸지 않는다.
+- `SavedFile.folder`에 트리 URI를 담아 열기·공유(문서 URI + 읽기 권한 부여)·폴더 열기에 쓴다. 폴더 열기 문서 ID는
+  `getTreeDocumentId(tree)` + `/하위` (외부 저장소 제공자 `<볼륨>:<경로>` 형식 가정), 화면 표시는
+  `ShareRules.locationLabel`(`primary:Music/YT` → `Music/YT`).
+- 앱 시작 시 `persistedUriPermissions`에 쓰기 권한이 없으면 기본 위치로 되돌린다.
+- 제한: Android 11+ 선택 창은 저장소 루트·`Download` 루트 자체를 고를 수 없다(그 아래 폴더는 가능).
 
 작업 폴더는 `cacheDir`가 아니라 `filesDir/work/` — 긴 다운로드 중 시스템이 캐시를
 비우면 실패하기 때문이다.
@@ -383,6 +398,12 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
 - 다운로드 중에는 버튼 비활성 (3장 단일 작업 원칙). 업데이트는 서비스 없이 실행해도 된다
   (수 초~수십 초, 화면을 떠나면 중단돼도 무방).
 - 버전 표시는 엔진 초기화 완료 시 1회, 업데이트 후 1회 조회.
+- 첫 실행 자동 업데이트 (2026-10-31): `YTLoaderApp`이 `engine.init()` 뒤 `isBundledVersion()`
+  (= 라이브러리 `version(ctx) == null`, 업데이트 성공 시에만 기록됨)이면 `engine.update()`를 먼저 실행하고
+  그다음 `EngineStatus.Ready`로 바꾼다. 그동안 `AppContainer.engineUpdating = true`(버튼 문구용).
+  엔진이 Ready가 되기 전이므로 다운로드·미리보기와 겹치지 않는다. 실패해도 Ready로 진행.
+  주의: 라이브러리의 최신 버전 확인(`ObjectMapper.readTree(URL)`)에는 타임아웃이 없다(파일 받기는 있음).
+  에뮬레이터 측정: 앱 실행부터 업데이트 완료(2026.10.26)까지 약 6초.
 
 ## 11. UI 구조와 상태
 
@@ -394,10 +415,17 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
   (material-icons-core에 없는 download·paste·music·movie·folder·link·open·playlist).
   - 제목 미리보기(FR-14): `MainViewModel`이 입력 0.7초 후 `engine.query()`(`TitlePreview.options`)를
     `title-<UUID>` processId로 실행, 새 입력·다운로드 시작 시 `engine.cancel()`로 취소.
+    옵션에 `-f bv*+ba/b`를 넣어 `--print`의 height·fps·vcodec은 최고 영상, acodec·abr·asr은 최고 오디오
+    값이 되게 한다. 한 줄에 13개 필드를 탭으로 잇고 제목을 마지막에 둔다(제목 안의 탭 보존).
+    필드를 늘려도 추출은 한 번이라 시간 차이 없음(PC 측정: 제목만 2.5초 / 확장 2.2초).
+    썸네일은 이미지 라이브러리 없이 `ui/main/Thumbnail.kt`가 `HttpURLConnection`(10초 타임아웃)으로 받아
+    `inSampleSize`로 폭 480px 근처까지 줄여 디코딩한다.
   - 클립보드 제안(FR-13): 화면이 포커스를 얻고 입력란이 비었을 때 `ClipDescription.timestamp`가
     바뀌었을 때만 `primaryClip`을 읽는다(Android 12+ 알림 반복 방지). 판정은 `UrlExtractor.isYouTube`.
-  - 완료 카드(FR-12): `DownloadState.Succeeded/Failed/Cancelled`가 `SavedFile`(uri, MediaStore가 정한 실제
-    이름, 크기, MIME, 하위 폴더) 목록을 갖는다(`MediaStoreExporter`가 insert 후 DISPLAY_NAME을 다시 읽음).
+  - 완료 카드(FR-12): 결과가 있으면(`DownloadState.hasResult`) 하단 영역에 [다운로드] 대신 카드만 보이고,
+    `downloadEnabled`도 false. ✕(`clearResult`)로 닫아야 버튼이 돌아온다.
+    `DownloadState.Succeeded/Failed/Cancelled`가 `SavedFile`(uri, 저장소가 정한 실제
+    이름, 크기, MIME, 하위 폴더, 저장 위치) 목록을 갖는다(`MediaStoreExporter`가 insert 후 DISPLAY_NAME을 다시 읽음).
     `download/FileActions.kt`가 열기·공유(`ACTION_SEND`/`SEND_MULTIPLE` + ClipData + 읽기 권한, chooser)·
     폴더(`ACTION_VIEW` + `DocumentsContract.buildDocumentUri("com.android.externalstorage.documents",
     "primary:Download/YTLoader[/하위]")`, 타입 `vnd.android.document/directory` → 없으면 `ACTION_VIEW_DOWNLOADS`)

@@ -27,7 +27,13 @@ import java.util.UUID
 private const val TAG = "YTLoader"
 
 @Parcelize
-data class DownloadRequest(val url: String, val options: DownloadOptions, val cookieFile: String?) : Parcelable
+data class DownloadRequest(
+    val url: String,
+    val options: DownloadOptions,
+    val cookieFile: String?,
+    /** 저장 위치 SAF 트리 URI. null이면 기본 위치. */
+    val saveFolder: String? = null,
+) : Parcelable
 
 /** 포그라운드 서비스(dataSync)에서 yt-dlp를 실행한다 (ARCHITECTURE 7장). */
 class DownloadService : Service() {
@@ -123,9 +129,9 @@ class DownloadService : Service() {
             val playlist = request.options.playlist
             val final = when {
                 result.cancelled || (cancelRequested && !result.succeeded) ->
-                    DownloadState.Cancelled(if (playlist) exportQuietly(workDir, currentItem) else emptyList())
+                    DownloadState.Cancelled(if (playlist) exportQuietly(request, workDir, currentItem) else emptyList())
                 result.succeeded -> try {
-                    DownloadState.Succeeded(MediaStoreExporter(this).export(workDir))
+                    DownloadState.Succeeded(Exporter.create(this, request.saveFolder).export(workDir))
                 } catch (e: Exception) {
                     Log.e(TAG, "export failed", e)
                     val message = getString(R.string.error_export, e.message ?: e.javaClass.simpleName)
@@ -133,7 +139,7 @@ class DownloadService : Service() {
                 }
                 else -> {
                     val error = result.lastError ?: getString(R.string.error_unknown)
-                    val saved = if (playlist) exportQuietly(workDir, currentItem) else emptyList()
+                    val saved = if (playlist) exportQuietly(request, workDir, currentItem) else emptyList()
                     DownloadState.Failed(result.exitCode, error, ErrorHintMapper.hint(error), saved)
                 }
             }
@@ -154,8 +160,8 @@ class DownloadService : Service() {
     }
 
     /** 실패·취소한 재생목록에서 완성된 항목만 저장한다 (처리 중이던 [interruptedItem] 제외). */
-    private fun exportQuietly(workDir: File, interruptedItem: Int?): List<SavedFile> = try {
-        MediaStoreExporter(this).export(workDir, interruptedItem)
+    private fun exportQuietly(request: DownloadRequest, workDir: File, interruptedItem: Int?): List<SavedFile> = try {
+        Exporter.create(this, request.saveFolder).export(workDir, interruptedItem)
     } catch (e: Exception) {
         Log.e(TAG, "partial export failed", e)
         emptyList()

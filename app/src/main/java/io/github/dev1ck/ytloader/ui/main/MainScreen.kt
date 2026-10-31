@@ -7,12 +7,14 @@ import android.content.Intent
 import android.text.format.Formatter
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -76,6 +78,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalClipboard
@@ -95,10 +98,10 @@ import io.github.dev1ck.ytloader.R
 import io.github.dev1ck.ytloader.download.DownloadState
 import io.github.dev1ck.ytloader.download.FileActions
 import io.github.dev1ck.ytloader.download.FormatCatalog
-import io.github.dev1ck.ytloader.download.MediaStoreExporter
 import io.github.dev1ck.ytloader.download.Mode
 import io.github.dev1ck.ytloader.download.SavedFile
 import io.github.dev1ck.ytloader.download.ShareRules
+import io.github.dev1ck.ytloader.download.TitlePreview
 import io.github.dev1ck.ytloader.login.LoginState
 import kotlinx.coroutines.launch
 
@@ -265,8 +268,9 @@ private fun TitlePreviewRow(state: MainUiState) {
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            val playlistTitle = preview.info.playlistTitle.takeIf { state.playlist }
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(14.dp)) {
+            val info = preview.info
+            val playlistTitle = info.playlistTitle.takeIf { state.playlist }
+            val icon = @Composable {
                 Icon(
                     painterResource(
                         when {
@@ -278,27 +282,56 @@ private fun TitlePreviewRow(state: MainUiState) {
                     null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
+                if (info.thumbnailUrl != null) {
+                    Thumbnail(
+                        info.thumbnailUrl,
+                        Modifier
+                            .width(112.dp)
+                            .aspectRatio(16f / 9f)
+                            .clip(MaterialTheme.shapes.small)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        placeholder = icon,
+                    )
+                } else {
+                    icon()
+                }
                 Spacer(Modifier.width(12.dp))
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        playlistTitle ?: preview.info.title,
+                        playlistTitle ?: info.title,
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (playlistTitle != null) {
-                        Text(
-                            stringResource(R.string.title_playlist),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    val meta = if (playlistTitle != null) {
+                        listOfNotNull(
+                            info.playlistCount?.let { stringResource(R.string.title_playlist_count, it) }
+                                ?: stringResource(R.string.title_playlist),
+                            info.channel,
                         )
+                    } else {
+                        listOfNotNull(info.channel, info.durationSec?.let(TitlePreview::durationLabel))
                     }
+                    if (meta.isNotEmpty()) InfoLine(meta.joinToString(" · "))
+                    info.video?.let { InfoLine(stringResource(R.string.info_video, TitlePreview.videoLabel(it))) }
+                    info.audio?.let { InfoLine(stringResource(R.string.info_audio, TitlePreview.audioLabel(it))) }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun InfoLine(text: String) = Text(
+    text,
+    style = MaterialTheme.typography.bodySmall,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    maxLines = 1,
+    overflow = TextOverflow.Ellipsis,
+)
 
 @Composable
 private fun ModeSelector(state: MainUiState, viewModel: MainViewModel) {
@@ -419,8 +452,10 @@ private fun BottomActionArea(state: MainUiState, viewModel: MainViewModel, onDow
             val download = state.downloadState
             if (download.isActive) {
                 ProgressPanel(download, viewModel)
-            } else {
+            } else if (download.hasResult) {
+                // 결과 카드가 [다운로드] 자리를 차지한다. ✕로 닫아야 다음 다운로드를 시작할 수 있다.
                 CompletionCard(state, viewModel)
+            } else {
                 Button(
                     onClick = onDownloadClick,
                     enabled = state.downloadEnabled,
@@ -431,7 +466,15 @@ private fun BottomActionArea(state: MainUiState, viewModel: MainViewModel, onDow
                         state.updating || state.engineStatus == EngineStatus.Initializing -> {
                             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(10.dp))
-                            Text(stringResource(if (state.updating) R.string.status_updating else R.string.status_engine_initializing))
+                            Text(
+                                stringResource(
+                                    when {
+                                        state.updating -> R.string.status_updating
+                                        state.engineUpdating -> R.string.status_first_update
+                                        else -> R.string.status_engine_initializing
+                                    },
+                                ),
+                            )
                         }
                         else -> {
                             Icon(painterResource(R.drawable.ic_download), null)
@@ -486,7 +529,7 @@ private fun CompletionCard(state: MainUiState, viewModel: MainViewModel) {
     val context = LocalContext.current
     val msgNotFound = stringResource(R.string.error_file_not_found)
     val msgNoApp = stringResource(R.string.error_no_app_to_open)
-    val msgNoFilesApp = stringResource(R.string.error_no_files_app)
+    val msgNoFilesApp = stringResource(R.string.error_no_files_app, FileActions.locationLabel(files.firstOrNull()?.folder))
     val shareTitle = stringResource(R.string.share)
 
     // 사용자가 그사이 파일을 지웠을 수 있으므로 누를 때마다 남은 파일만 쓴다.
@@ -543,10 +586,7 @@ private fun CompletionCard(state: MainUiState, viewModel: MainViewModel) {
                             modifier = Modifier.weight(1f),
                         ) { ActionLabel(rememberVectorPainter(Icons.Filled.Share), shareTitle) }
                         OutlinedButton(
-                            onClick = {
-                                val subDir = ShareRules.commonSubDir(files.map { it.subDir })
-                                launch(FileActions.folderIntent(context, subDir), msgNoFilesApp)
-                            },
+                            onClick = { launch(FileActions.folderIntent(context, files), msgNoFilesApp) },
                             contentPadding = ActionPadding,
                             modifier = Modifier.weight(1f),
                         ) { ActionLabel(painterResource(R.drawable.ic_folder), stringResource(R.string.folder)) }
@@ -571,7 +611,7 @@ private fun ActionLabel(icon: Painter, label: String) {
 private fun FileSummary(files: List<SavedFile>, partial: Boolean) {
     val context = LocalContext.current
     val subDir = ShareRules.commonSubDir(files.map { it.subDir })
-    val location = if (subDir == null) MediaStoreExporter.ROOT else "${MediaStoreExporter.ROOT}/$subDir"
+    val location = FileActions.locationLabel(files.firstOrNull()?.folder, subDir)
     val totalSize = Formatter.formatShortFileSize(context, files.sumOf { it.size })
     val single = files.singleOrNull()
     val (iconRes, name, meta) = when {
@@ -586,7 +626,7 @@ private fun FileSummary(files: List<SavedFile>, partial: Boolean) {
         )
         else -> Triple(
             R.drawable.ic_playlist,
-            subDir ?: MediaStoreExporter.ROOT,
+            subDir ?: location,
             stringResource(R.string.files_count, files.size) + " · $totalSize",
         )
     }

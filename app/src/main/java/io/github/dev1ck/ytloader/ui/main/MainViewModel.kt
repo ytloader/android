@@ -1,8 +1,10 @@
 package io.github.dev1ck.ytloader.ui.main
 
 import android.app.Application
+import android.content.Intent
 import android.net.Uri
 import androidx.annotation.StringRes
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.dev1ck.ytloader.EngineStatus
@@ -11,6 +13,7 @@ import io.github.dev1ck.ytloader.YTLoaderApp
 import io.github.dev1ck.ytloader.download.DownloadRequest
 import io.github.dev1ck.ytloader.download.DownloadService
 import io.github.dev1ck.ytloader.download.DownloadState
+import io.github.dev1ck.ytloader.download.FileActions
 import io.github.dev1ck.ytloader.download.Mode
 import io.github.dev1ck.ytloader.engine.UpdateResult
 import io.github.dev1ck.ytloader.login.LoginState
@@ -46,6 +49,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val loaded = container.settingsRepository.load()
             settings = loaded
             _state.update { it.applySettings(loaded) }
+            // 사용자가 폴더를 지웠거나 권한을 거둬 갔으면 기본 위치로 되돌린다.
+            if (loaded.saveFolder != null && !hasFolderPermission(loaded.saveFolder)) {
+                edit { it.copy(saveFolder = null) }
+                showMessage(R.string.error_storage_lost)
+            }
         }
         viewModelScope.launch {
             container.downloadRepository.state.collect { s ->
@@ -72,6 +80,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             container.ytDlpVersion.collect { v -> _state.update { it.copy(ytDlpVersion = v) } }
         }
+        viewModelScope.launch {
+            container.engineUpdating.collect { v -> _state.update { it.copy(engineUpdating = v) } }
+        }
     }
 
     fun setUrl(url: String) {
@@ -97,6 +108,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setUseCookies(checked: Boolean) = edit { it.copy(useCookies = checked) }
+
+    // ---- 저장 위치 ----
+
+    /** 폴더 선택기에서 고른 폴더. null이면 기본 위치. 고른 폴더는 앱을 다시 켜도 쓸 수 있게 영구 권한을 받는다. */
+    fun setSaveFolder(tree: Uri?) {
+        val resolver = getApplication<Application>().contentResolver
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        val previous = _state.value.saveFolder
+        if (tree != null) {
+            try {
+                resolver.takePersistableUriPermission(tree, flags)
+            } catch (e: SecurityException) {
+                showMessage(R.string.error_storage_lost)
+                return
+            }
+        }
+        if (previous != null && previous != tree?.toString()) {
+            runCatching { resolver.releasePersistableUriPermission(previous.toUri(), flags) }
+        }
+        edit { it.copy(saveFolder = tree?.toString()) }
+        showMessage(getApplication<Application>().getString(R.string.storage_changed, FileActions.locationLabel(tree?.toString())))
+    }
+
+    private fun hasFolderPermission(folder: String): Boolean =
+        getApplication<Application>().contentResolver.persistedUriPermissions.any {
+            it.uri.toString() == folder && it.isWritePermission
+        }
 
     // ---- 제목 미리보기 ----
 
@@ -252,7 +290,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         stopTitlePreview() // 동시에 yt-dlp를 두 개 돌리지 않는다
         val cookieFile = cookieFileFor(s)
         try {
-            DownloadService.start(getApplication(), DownloadRequest(url, s.toOptions(), cookieFile?.absolutePath))
+            DownloadService.start(getApplication(), DownloadRequest(url, s.toOptions(), cookieFile?.absolutePath, s.saveFolder))
         } catch (e: IllegalStateException) {
             // 백그라운드 FGS 시작 제한 등. Preparing에 묶여 있지 않도록 실패로 돌린다.
             container.downloadRepository.set(

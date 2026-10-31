@@ -19,6 +19,14 @@ class YTLoaderApp : Application() {
             container.workRoot.deleteRecursively()
             try {
                 container.engine.init()
+                // 내장 yt-dlp는 라이브러리 출시 시점 버전이라 오래됐다. 처음 한 번은 최신으로 받는다.
+                // 실패하면(오프라인 등) 내장 버전으로 시작하고 다음 실행 때 다시 시도한다.
+                if (container.engine.isBundledVersion()) {
+                    container.engineUpdating.value = true
+                    val result = container.engine.update()
+                    Log.i("YTLoader", "first-run yt-dlp update: $result")
+                    container.engineUpdating.value = false
+                }
                 container.engineStatus.value = EngineStatus.Ready
                 container.ytDlpVersion.value = container.engine.version()
             } catch (e: Exception) {

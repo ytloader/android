@@ -398,3 +398,32 @@
 - 증거: `clean testDebugUnitTest lintRelease assembleRelease` 성공(58 tests, lint 오류 0), `apksigner verify` 통과.
 - 남은 것: SPEC O-1(실제 계정 앱 내 로그인), YouTube 앱 공유·실제 cookies.txt 가져오기는 사용자 실사용으로 확인.
   다음 버전부터 versionCode를 반드시 올릴 것(현재 1).
+
+### 2026-10-31 v0.1.0 이후 개선 (사용자 요청 5건)
+
+- 질문 "FHD가 최고인 영상을 4K로 받으면?" → 해상도 칩은 `-S res:N`(상한 우선순위)이라 실패 없이 그 영상의 최고
+  화질로 받는다. 확인: 최대 240p인 `jNQXAC9IVRw`에 2160 지정 → `395+140 320x240`.
+- 완료 카드가 [다운로드] 자리를 대신함(✕로 닫아야 버튼 복귀, `DownloadState.hasResult`, `downloadEnabled`도 막음).
+- 영상 정보 미리보기 확장: 먼저 PC yt-dlp 2026.08.19로 `-J` 필드를 확인해 추천 → 사용자 선택: 썸네일 · 채널·길이 ·
+  원본 화질/음질 (업로드일·조회수·예상 크기는 제외). `TitlePreview`가 `-f bv*+ba/b` + 13필드 `--print`, 썸네일은
+  `ui/main/Thumbnail.kt`(의존성 추가 없음).
+- 저장 위치 변경: SPEC 비목표·ARCHITECTURE 8장 [결정]을 바꾸는 일이라 먼저 질문 → 사용자 선택 SAF 폴더 선택기.
+  `Exporter`(MediaStore 기본 / `DocumentTreeExporter`), 설정 `save_folder`, 영구 권한, `[기본 위치로]`.
+- 첫 실행 yt-dlp 자동 업데이트: 내장 2025.11.12 → 엔진 준비 단계에서 STABLE 최신으로(`isBundledVersion()`).
+- 증거 (에뮬레이터 API 37):
+  - `testDebugUnitTest` 61 통과(58 → TitlePreview 재작성 + ShareRules 위치 테스트), `lintDebug` 오류 0
+    (경고는 기존 8건: TypographyEllipsis 5 · OldTargetApi · ChromeOsAbiSupport · DataExtractionRules).
+  - 새 설치 → "yt-dlp 최신 버전 받는 중..." `build/r4_first_update.png` → 로그 `first-run yt-dlp update:
+    Updated(version=2026.10.26)`(약 6초), 설정에 버전 2026.10.26.
+  - 정보 카드: Big Buck Bunny `build/r4_info_video.png`(Blender · 10:35 / 최대 화질 2160p60 · AV1 / 원본 음질 AAC
+    388kbps · 48kHz — 이 영상은 5.1채널 AAC가 최고 음질), 재생목록 `build/r4_info_playlist.png`(재생목록 29개 ·
+    Wickman Wish).
+  - 완료 카드가 버튼 자리 차지 `build/r4_done_card.png`, ✕ 후 [다운로드] 복귀.
+  - SAF: 설정 [변경] → 선택 창 `build/r4_picker.png` → Music → 설정 표시 "Music" `build/r4_settings_music.png`
+    → UI [다운로드] → `/sdcard/Music/Me at the zoo.mp3`(669,087 B), 카드 "669 kB · Music" `build/r4_done_music.png`.
+    [폴더] → 파일 앱 "Music" `build/r4_folder_music.png`, [열기] → YouTube Music 미리보기, [공유] → "Sharing 1 file"
+    `build/r4_share_music.png`. 다시 받기 → `Me at the zoo (1).mp3`. 재생목록 첫 항목 후 취소 →
+    `Music/Team Fortress 2 [2010 Version]/001 - ... Intro.mp3`, 카드 "Music/Team Fortress 2 [..." `build/r4_playlist_cancel.png`,
+    [폴더] → 하위 폴더. [기본 위치로] → "Download/YTLoader", 설정 저장값 삭제 확인. 테스트 파일 삭제.
+- 확인 못 한 것: 실기기(삼성)에서 SAF 폴더 열기·SD카드 폴더, 권한이 사라진 폴더로 시작 시 되돌림(코드 경로만).
+- versionCode는 아직 1 — 다음 릴리스 때 올릴 것.

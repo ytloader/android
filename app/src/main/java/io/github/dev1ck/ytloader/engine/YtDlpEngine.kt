@@ -23,6 +23,9 @@ interface YtDlpEngine {
     /** `--version` 실행. 블로킹. */
     fun version(): String?
 
+    /** 한 번도 업데이트하지 않아 APK에 내장된 yt-dlp를 쓰는 중이면 true. */
+    fun isBundledVersion(): Boolean
+
     /** 블로킹. 예외를 던지지 않고 항상 [ExecResult]로 돌려준다. */
     fun execute(
         url: String,

@@ -51,12 +51,15 @@ class DownloadNotifications(private val context: Context) {
     fun showSucceeded(files: List<SavedFile>) {
         val first = files.firstOrNull()
         val tap = if (first == null) openAppIntent() else activity(REQ_VIEW, FileActions.openIntent(first))
-        post(ID_RESULT, result(context.getString(R.string.notification_succeeded_title), context.getString(R.string.status_succeeded), tap, files))
+        post(ID_RESULT, result(context.getString(R.string.notification_succeeded_title), context.getString(R.string.status_succeeded, savedLocation(files)), tap, files))
     }
 
     /** 실패해도 재생목록에서 저장한 파일이 있으면 [공유]·[폴더]를 붙인다. */
     fun showFailed(text: String, saved: List<SavedFile> = emptyList()) =
         post(ID_RESULT, result(context.getString(R.string.notification_failed_title), text, openAppIntent(), saved))
+
+    private fun savedLocation(files: List<SavedFile>) =
+        FileActions.locationLabel(files.firstOrNull()?.folder, ShareRules.commonSubDir(files.map { it.subDir }))
 
     private fun result(title: String, text: String, tap: PendingIntent, files: List<SavedFile>): Notification {
         val builder = NotificationCompat.Builder(context, CHANNEL_RESULT)
@@ -69,7 +72,7 @@ class DownloadNotifications(private val context: Context) {
         if (files.isNotEmpty()) {
             val shareTitle = context.getString(R.string.share)
             builder.addAction(0, shareTitle, activity(REQ_SHARE, FileActions.shareIntent(files, shareTitle)))
-            FileActions.folderIntent(context, ShareRules.commonSubDir(files.map { it.subDir }))?.let {
+            FileActions.folderIntent(context, files)?.let {
                 builder.addAction(0, context.getString(R.string.folder), activity(REQ_FOLDER, it))
             }
         }

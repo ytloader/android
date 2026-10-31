@@ -25,6 +25,8 @@ class AppContainer(context: Context) {
     val engine: YtDlpEngine = YoutubeDlAndroidEngine(appContext)
     val engineStatus = MutableStateFlow<EngineStatus>(EngineStatus.Initializing)
     val ytDlpVersion = MutableStateFlow<String?>(null)
+    /** 첫 실행 때 엔진 준비 중에 yt-dlp를 최신으로 받는 중. */
+    val engineUpdating = MutableStateFlow(false)
     val downloadRepository = DownloadRepository()
     val settingsRepository = SettingsRepository(appContext)
     val cookieStore = CookieStore(appContext)

@@ -55,6 +55,9 @@ fun SettingsSheet(state: MainUiState, viewModel: MainViewModel, onDismiss: () ->
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(viewModel::importCookies)
     }
+    val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri?.let(viewModel::setSaveFolder)
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
             modifier = Modifier
@@ -138,15 +141,16 @@ fun SettingsSheet(state: MainUiState, viewModel: MainViewModel, onDismiss: () ->
             SectionLabel(stringResource(R.string.section_storage))
             SettingsCard {
                 val context = LocalContext.current
-                val noFilesApp = stringResource(R.string.error_no_files_app)
+                val location = FileActions.locationLabel(state.saveFolder)
+                val noFilesApp = stringResource(R.string.error_no_files_app, location)
                 ListItem(
-                    headlineContent = { Text("Download/YTLoader") },
+                    headlineContent = { Text(location) },
                     supportingContent = { Text(stringResource(R.string.storage_desc)) },
                     leadingContent = { Icon(painterResource(R.drawable.ic_folder), null) },
                     trailingContent = { Icon(painterResource(R.drawable.ic_open), stringResource(R.string.folder)) },
                     colors = transparentListItem(),
                     modifier = Modifier.clickable {
-                        val intent = FileActions.folderIntent(context, null)
+                        val intent = FileActions.folderIntent(context, state.saveFolder, null)
                         try {
                             if (intent != null) context.startActivity(intent) else viewModel.showMessage(noFilesApp)
                         } catch (e: ActivityNotFoundException) {
@@ -154,6 +158,16 @@ fun SettingsSheet(state: MainUiState, viewModel: MainViewModel, onDismiss: () ->
                         }
                     },
                 )
+                // 바꾼 위치는 다음 다운로드부터 적용된다 (진행 중인 다운로드는 시작할 때의 위치에 저장).
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                ) {
+                    OutlinedButton(onClick = { folderLauncher.launch(null) }) { Text(stringResource(R.string.storage_change)) }
+                    if (state.saveFolder != null) {
+                        TextButton(onClick = { viewModel.setSaveFolder(null) }) { Text(stringResource(R.string.storage_reset)) }
+                    }
+                }
             }
 
             Spacer(Modifier.height(4.dp))

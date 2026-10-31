@@ -6,9 +6,12 @@
     <string name="paste">붙여넣기</string>
     <string name="clear">지우기</string>
     <string name="clipboard_suggestion">클립보드 링크 붙여넣기 · %1$s</string>
-    <string name="title_loading">제목 가져오는 중…</string>
-    <string name="title_failed">제목을 가져오지 못했습니다. 그래도 다운로드할 수 있습니다.</string>
+    <string name="title_loading">영상 정보 가져오는 중…</string>
+    <string name="title_failed">영상 정보를 가져오지 못했습니다. 그래도 다운로드할 수 있습니다.</string>
     <string name="title_playlist">재생목록 전체</string>
+    <string name="title_playlist_count">재생목록 %1$d개</string>
+    <string name="info_video">최대 화질 %1$s</string>
+    <string name="info_audio">원본 음질 %1$s</string>
     <string name="mode_audio">오디오만</string>
     <string name="mode_video">영상+오디오</string>
     <string name="label_format">포맷</string>
@@ -32,7 +35,7 @@
     <string name="files_count">파일 %1$d개</string>
     <string name="saved_partial">완료된 %1$d개 저장됨</string>
     <string name="error_file_not_found">파일을 찾을 수 없습니다. 지웠거나 옮겼을 수 있습니다.</string>
-    <string name="error_no_files_app">파일 앱을 열 수 없습니다. Download/YTLoader 폴더에서 확인하세요.</string>
+    <string name="error_no_files_app">파일 앱을 열 수 없습니다. %1$s 폴더에서 확인하세요.</string>
     <string name="details">자세히</string>
     <string name="settings">설정</string>
     <string name="chip_logged_in">로그인됨</string>
@@ -41,6 +44,10 @@
     <string name="section_engine">다운로드 엔진</string>
     <string name="section_storage">저장 위치</string>
     <string name="storage_desc">누르면 파일 앱에서 엽니다. 재생목록은 하위 폴더에 저장됩니다</string>
+    <string name="storage_change">변경</string>
+    <string name="storage_reset">기본 위치로</string>
+    <string name="storage_changed">저장 위치: %1$s</string>
+    <string name="error_storage_lost">저장 폴더에 접근할 수 없어 기본 위치(Download/YTLoader)로 되돌렸습니다.</string>
     <string name="about_line">YTLoader %1$s · GPL-3.0</string>
     <string name="version_unknown">yt-dlp 버전 확인 중...</string>
     <string name="update_ytdlp">yt-dlp 업데이트</string>
@@ -52,8 +59,9 @@
     <string name="message_share_while_busy">진행 중인 다운로드가 끝난 뒤 시작하세요.</string>
 
     <string name="status_engine_initializing">엔진 준비 중...</string>
+    <string name="status_first_update">yt-dlp 최신 버전 받는 중...</string>
     <string name="status_preparing">다운로드 준비 중...</string>
-    <string name="status_succeeded">다운로드 완료 (Download/YTLoader)</string>
+    <string name="status_succeeded">다운로드 완료 (%1$s)</string>
     <string name="status_failed_short">다운로드 실패</string>
     <string name="progress_preparing">준비 중</string>
     <string name="progress_postprocessing">변환 중</string>

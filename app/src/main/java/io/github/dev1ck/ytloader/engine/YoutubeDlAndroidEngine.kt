@@ -30,6 +30,9 @@ class YoutubeDlAndroidEngine(private val context: Context) : YtDlpEngine {
         null
     }
 
+    // 라이브러리는 업데이트에 성공했을 때만 버전을 기록한다.
+    override fun isBundledVersion(): Boolean = ytdl.version(context) == null
+
     override fun execute(
         url: String,
         options: List<YtOption>,

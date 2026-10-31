@@ -23,12 +23,16 @@ data class MainUiState(
     val embedMetadata: Boolean = true,
     val playlist: Boolean = false,
     val useCookies: Boolean = true,
+    /** 저장 위치 SAF 트리 URI. null이면 기본 위치. */
+    val saveFolder: String? = null,
     val loginState: LoginState = LoginState.LoggedOut,
     val screen: Screen = Screen.Main,
     val engineStatus: EngineStatus = EngineStatus.Initializing,
     val downloadState: DownloadState = DownloadState.Idle,
     val ytDlpVersion: String? = null,
     val updating: Boolean = false,
+    /** 첫 실행 자동 업데이트 중 (엔진 준비 단계). */
+    val engineUpdating: Boolean = false,
     val dialog: MainDialog? = null,
     val message: String? = null,
     val titlePreview: TitleState = TitleState.Idle,
@@ -45,7 +49,7 @@ data class MainUiState(
     val qualityEnabled: Boolean get() = !busy && format.hasQuality
     val thumbnailEnabled: Boolean get() = !busy && format.supportsThumbnail
     val engineReady: Boolean get() = engineStatus == EngineStatus.Ready
-    val downloadEnabled: Boolean get() = !busy && engineReady
+    val downloadEnabled: Boolean get() = !busy && engineReady && !downloadState.hasResult
     val cancelEnabled: Boolean get() = downloadState.isActive
 
     val updateEnabled: Boolean get() = !busy && engineReady
@@ -58,14 +62,14 @@ data class MainUiState(
         mode = s.mode, audioFormat = s.audioFormat, audioQuality = s.audioQuality,
         videoFormat = s.videoFormat, videoResolution = s.videoResolution,
         embedThumbnail = s.embedThumbnail, embedMetadata = s.embedMetadata, playlist = s.playlist,
-        useCookies = s.useCookies,
+        useCookies = s.useCookies, saveFolder = s.saveFolder,
     )
 
     fun toSettings(base: Settings) = base.copy(
         mode = mode, audioFormat = audioFormat, audioQuality = audioQuality,
         videoFormat = videoFormat, videoResolution = videoResolution,
         embedThumbnail = embedThumbnail, embedMetadata = embedMetadata, playlist = playlist,
-        useCookies = useCookies,
+        useCookies = useCookies, saveFolder = saveFolder,
     )
 }
 

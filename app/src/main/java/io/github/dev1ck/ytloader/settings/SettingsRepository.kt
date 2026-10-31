@@ -25,6 +25,8 @@ data class Settings(
     val playlist: Boolean = false,
     val useCookies: Boolean = true,
     val notificationPermissionAsked: Boolean = false,
+    /** 저장 위치 SAF 트리 URI. null이면 기본 위치(Download/YTLoader). */
+    val saveFolder: String? = null,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -39,6 +41,7 @@ class SettingsRepository(private val context: Context) {
         val playlist = booleanPreferencesKey("playlist")
         val useCookies = booleanPreferencesKey("use_cookies")
         val notificationPermissionAsked = booleanPreferencesKey("notification_permission_asked")
+        val saveFolder = stringPreferencesKey("save_folder")
     }
 
     val settings = context.dataStore.data.map { it.toSettings() }
@@ -57,6 +60,7 @@ class SettingsRepository(private val context: Context) {
             it[Keys.playlist] = s.playlist
             it[Keys.useCookies] = s.useCookies
             it[Keys.notificationPermissionAsked] = s.notificationPermissionAsked
+            if (s.saveFolder == null) it.remove(Keys.saveFolder) else it[Keys.saveFolder] = s.saveFolder
         }
     }
 
@@ -74,6 +78,7 @@ class SettingsRepository(private val context: Context) {
             playlist = this[Keys.playlist] ?: defaults.playlist,
             useCookies = this[Keys.useCookies] ?: defaults.useCookies,
             notificationPermissionAsked = this[Keys.notificationPermissionAsked] ?: defaults.notificationPermissionAsked,
+            saveFolder = this[Keys.saveFolder],
         )
     }
 }
