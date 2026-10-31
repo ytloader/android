@@ -2,7 +2,7 @@ package io.github.dev1ck.ytloader.download
 
 sealed interface ParsedLine {
     data class Progress(val percent: Float, val text: String) : ParsedLine
-    data class Status(val text: String) : ParsedLine
+    data class PlaylistItem(val index: Int, val count: Int, val text: String) : ParsedLine
     data class PostProcessing(val tag: String, val text: String) : ParsedLine
     data class Error(val line: String) : ParsedLine
 }
@@ -24,7 +24,7 @@ object ProgressParser {
         }
         playlistItem.find(line)?.let { m ->
             val (index, count) = m.destructured
-            return ParsedLine.Status("재생목록 $index / $count 항목 처리 중...")
+            return ParsedLine.PlaylistItem(index.toInt(), count.toInt(), "재생목록 $index / $count 항목 처리 중...")
         }
         postProcessing.find(line)?.let { m ->
             val tag = m.groupValues[1]

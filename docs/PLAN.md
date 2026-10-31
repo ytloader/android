@@ -61,13 +61,13 @@
 
 ## M3 다운로드 기본 흐름
 
-- [ ] AppContainer, 엔진 초기화 상태(EngineStatus), 시작 시 작업 폴더 정리
-- [ ] DownloadService (FGS dataSync, 진행/결과 알림, 취소, onTimeout)
-- [ ] DownloadRepository, MediaStoreExporter
-- [ ] MainScreen/MainViewModel: FR-1, FR-3, FR-4, FR-5, FR-6, FR-7
-- [ ] 알림 권한 요청 (API 33+, 첫 다운로드 때)
-- [ ] SPEC O-3: 포맷별 썸네일 삽입 확인 → 안 되는 포맷은 카탈로그에서 썸네일 미지원 처리 후 보고
-- [ ] 완료 조건 (기기):
+- [x] AppContainer, 엔진 초기화 상태(EngineStatus), 시작 시 작업 폴더 정리
+- [x] DownloadService (FGS dataSync, 진행/결과 알림, 취소, onTimeout)
+- [x] DownloadRepository, MediaStoreExporter
+- [x] MainScreen/MainViewModel: FR-1, FR-3, FR-4, FR-5, FR-6, FR-7
+- [x] 알림 권한 요청 (API 33+, 첫 다운로드 때)
+- [x] SPEC O-3: 포맷별 썸네일 삽입 확인 → 안 되는 포맷은 카탈로그에서 썸네일 미지원 처리 후 보고
+- [x] 완료 조건 (기기):
       - E1(mp3), E5(mp4 1080) 실제 다운로드 → `adb shell ls -l /sdcard/Download/YTLoader/` 결과
       - 다운로드 중 홈으로 나가도 완료됨, 진행 알림 스크린샷
       - 재생목록 다운로드 중 취소 → 공용 폴더에 부분 파일 없음
@@ -172,3 +172,47 @@
 - [구현자 판단] 파일 배치·Serializable·문구 상수 위치는 ARCHITECTURE 2장 "M2에서 정한 조정"에 기록.
 - [구현자 판단] CookieFileValidator 도메인 판정은 `youtube.com` 또는 `.youtube.com`으로 끝나는 것만
   (`notyoutube.com` 같은 유사 도메인 거부). ErrorHint의 로그인 안내는 기본 안내 다음 줄에 붙인다.
+
+### 2026-10-31 M3 다운로드 기본 흐름 완료
+
+- AppContainer·EngineStatus·YTLoaderApp(시작 시 `files/work` 정리 + 엔진 init), YoutubeDlAndroidEngine,
+  DownloadState/Repository, DownloadService(dataSync, 진행·결과 알림, 취소 액션, onTimeout),
+  DownloadNotifications, MediaStoreExporter, MainScreen/MainViewModel/MainUiState, 알림 권한(첫 다운로드 때 1회).
+  `SpikeRunner` 삭제. debug 전용 `DebugDownloadReceiver` 추가(ARCHITECTURE 16장).
+- 발견 → 수정 ([구현자 판단], ARCHITECTURE 4·6·7장 갱신):
+  1. 변환 중 취소 시 ffmpeg 하위 프로세스가 살아남아 계속 씀(라이브러리 버그 확인)
+     → `cancel()`이 명령줄에 작업 ID가 있는 자기 UID 프로세스도 종료.
+  2. 재생목록 취소 시 처리 중이던 항목의 원본 `.webm`과 쓰다 만 `.mp3`가 공용 저장소로 나감
+     (이름 규칙으로 구별 불가) → 마지막 "Downloading item N"의 N번 항목 파일 제외.
+     `ParsedLine.Status` → `PlaylistItem(index, count, text)`.
+- 증거 (에뮬레이터 API 37):
+  - E1 mp3: UI로 실행 → `Me at the zoo.mp3` 669,087 B. 화면 `build/m3_e1_done.png`, 알림 `build/m3_e1_notification.png`.
+  - E5 mp4 1080: `Me at the zoo.mp4` 873,186 B (영상 코덱 av1 — 데스크톱판과 같은 `-S` 규칙의 결과).
+  - 홈으로 나간 뒤에도 완료: 10분 영상 mp3 19,661,081 B, 진행 알림 `build/m3_progress_notification.png`
+    ("다운로드 중... 92.1% of 8.69MiB ..."), 완료 알림 `build/m3_done_notification.png`,
+    완료 알림 탭 → YouTube Music 미리듣기로 열림(`build/m3_open_file.png`).
+  - 재생목록 취소(`PLBB231211A4F62143`, 2번 항목 다운로드 중 / 변환 중 각 1회): [취소] 후 2.7초에 서비스 종료,
+    3초 후 libpython/libffmpeg 프로세스 없음, `files/work` 비어 있음, 공용 저장소에는
+    `Team Fortress 2 [2010 Version]/001 - ... Intro.mp3`(18,019,840 B, ffprobe 628.9초 + png 표지)만 남음.
+    화면 "다운로드가 취소되었습니다. (완료된 1개 파일은 저장됨)" `build/m3_playlist_cancel.png`.
+  - 실패 대화상자(잘못된 ID): 종료 코드 알 수 없음 + ERROR 줄 + 안내 `build/m3_failure_dialog.png`.
+  - FR-1: 빈 URL → "URL을 입력해 주세요." 스낵바, [붙여넣기] → 필드에 `https://youtu.be/jNQXAC9IVRw` (`build/m3_paste.png`).
+  - `testDebugUnitTest` 47 통과, `lintDebug` 통과(경고 7: 의도된 targetSdk 36, release arm64만, SPEC 문구의 "...",
+    앱 아이콘 없음 → M6).
+- 포맷 10종 결과 (jNQXAC9IVRw, 모두 최종 확장자 유지, 썸네일은 ffprobe로 확인):
+
+  | 모드 | 포맷 | 저장 파일 | 크기(B) | 썸네일 |
+  |---|---|---|---|---|
+  | 오디오 | mp3 | Me at the zoo.mp3 | 669,087 | png attached_pic |
+  | 오디오 | m4a | Me at the zoo.m4a | 800,759 | png attached_pic (mutagen) |
+  | 오디오 | opus | Me at the zoo.opus | 702,025 | png attached_pic (mutagen) |
+  | 오디오 | flac | Me at the zoo.flac | 1,696,852 | png attached_pic (mutagen) |
+  | 오디오 | wav | Me at the zoo.wav | 3,649,274 | 미지원(옵션 제외) |
+  | 오디오 | original | Me at the zoo.webm | 253,351 | 미지원 |
+  | 영상 | mp4 | Me at the zoo.mp4 | 873,186 | png attached_pic (mutagen) |
+  | 영상 | mkv | Me at the zoo.mkv | 498,523 | 첨부 파일 (ffmpeg) |
+  | 영상 | webm | Me at the zoo (1).webm | 546,265 | 미지원 |
+  | 영상 | original | Me at the zoo (2).webm | 475,307 | 미지원 |
+
+- SPEC O-3 해소: 표 변경 없음.
+- 남은 것: "로그인 쿠키" 전달은 M5, 설정 유지·공유·업데이트 버튼은 M4.

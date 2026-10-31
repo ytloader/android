@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- debug 빌드 전용 검증 훅 (adb 셸에서만 호출 가능하도록 shell 권한 요구) -->
+        <receiver
+            android:name=".DebugDownloadReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
+    </application>
+</manifest>

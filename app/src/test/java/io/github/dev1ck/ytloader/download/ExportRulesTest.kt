@@ -23,6 +23,15 @@ class ExportRulesTest {
         assertFalse(ExportRules.isExportable("a.temp.mp3"))
     }
 
+    @Test fun interruptedPlaylistItemExcluded() {
+        assertTrue(ExportRules.isExportable("001 - a.mp3", interruptedItem = 2))
+        assertFalse(ExportRules.isExportable("002 - b.mp3", interruptedItem = 2))
+        assertFalse(ExportRules.isExportable("002 - b.webm", interruptedItem = 2))
+        assertTrue(ExportRules.isExportable("012 - c.mp3", interruptedItem = 2))
+        assertFalse(ExportRules.isExportable("1002 - d.mp3", interruptedItem = 1002))
+        assertTrue(ExportRules.isExportable("002 - b.mp3"))
+    }
+
     @Test fun thumbnailLeftovers() {
         assertFalse(ExportRules.isExportable("a.webp"))
         assertFalse(ExportRules.isExportable("a.JPG"))

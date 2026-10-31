@@ -150,9 +150,10 @@ data class YtOption(val name: String, val value: String? = null)
   우리 빌더는 같은 옵션을 반복하지 않으므로 순서가 그대로 유지된다.
 - `destroyProcessById(id)`: 메인 프로세스를 `destroy()`하고 맵에서 지운다 → `execute`가
   `CanceledException`. 하위 프로세스 종료 코드는 `pstree -p <processId>`에 **PID가 아니라
-  우리가 넘긴 문자열 ID**를 넣어서 사실상 동작하지 않는다. M3 취소 검증에서 ffmpeg가 남는지
-  확인하고, 남으면 엔진 래퍼가 취소 시 자기 UID의 `libffmpeg.so`/`libqjs.so` 프로세스를
-  정리한다 (단일 작업 원칙이라 안전) — [구현자 판단].
+  우리가 넘긴 문자열 ID**를 넣어서 사실상 동작하지 않는다. M3에서 확인: 변환 중 취소하면
+  ffmpeg가 계속 돌며 결과 파일을 쓴다. → [구현자 판단] 작업 ID를 processId로 쓰고 작업 폴더
+  경로에 넣으므로, `cancel()`이 `/proc/*/cmdline`에 그 ID가 들어 있는 자기 UID 프로세스를
+  `Process.killProcess`로 함께 종료한다 (M3 재검증: 취소 3초 후 남은 프로세스 없음).
 - `updateYoutubeDL(ctx, UpdateChannel.STABLE)`: `DONE` / `ALREADY_UP_TO_DATE`, 실패 시
   `YoutubeDLException`. GitHub API로 최신 태그를 받아 SharedPreferences에 저장한다.
 - 버전 조회: `version(ctx)`는 그 SharedPreferences 값이라 **업데이트를 한 번도 안 했으면 null**
@@ -241,7 +242,7 @@ E8  입력: 영상 mkv, 해상도 720, 썸네일✗ 메타✗ 재생목록✗ �
 ```kotlin
 sealed interface ParsedLine {
     data class Progress(val percent: Float, val text: String) : ParsedLine      // 규칙 1
-    data class Status(val text: String) : ParsedLine                            // 규칙 2 (진행률 유지)
+    data class PlaylistItem(val index: Int, val count: Int, val text: String) : ParsedLine  // 규칙 2 (진행률 유지, 처리 중 항목 번호 기억)
     data class PostProcessing(val tag: String, val text: String) : ParsedLine   // 규칙 3 (진행률 100)
     data class Error(val line: String) : ParsedLine                             // 규칙 4
 }
@@ -280,8 +281,11 @@ start(요청)                                  cancel
   ├ options = YtDlpArgsBuilder(...)
   ├ engine.execute(url, options, jobId) ── onLine → ProgressParser → 상태/알림
   ├ 성공: MediaStoreExporter.export(작업 폴더) → 상태 Succeeded(uris)
-  ├ 실패/취소: 재생목록 모드면 MediaStoreExporter.export(작업 폴더)로 완성된 항목만 저장
-  │            (8장의 제외 규칙이 미완성 파일을 걸러냄), 단일 영상이면 저장 안 함
+  ├ 실패/취소: 재생목록 모드면 MediaStoreExporter.export(작업 폴더, 처리 중 항목 번호)로
+  │            완성된 항목만 저장, 단일 영상이면 저장 안 함.
+  │            (M3에서 확인: 8장의 이름 규칙만으로는 변환 전 원본 `002 - x.webm`과 쓰다 만
+  │            `002 - x.mp3`를 걸러내지 못한다 → 마지막 "Downloading item N" 의 N번 항목
+  │            파일(`NNN - ` 접두사)은 전부 제외. 그 앞 항목들은 후처리까지 끝난 상태다.)
   │            → 상태 Failed(exitCode?, lastError, hint, savedCount) / Cancelled(savedCount)
   ├ finally: 작업 폴더 삭제, stopForeground, stopSelf, 결과 알림
 ```
@@ -315,7 +319,8 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
 4. 복사 실패 시 insert한 항목 삭제 후 오류.
 - 결과: 저장된 URI 목록(완료 알림/열기에 사용).
 - M3에서 각 포맷(mp3, m4a, opus, flac, wav, mp4, mkv, webm, original)의 **최종 파일명이
-  확장자까지 유지되는지** 확인하고 결과를 작업 로그에 남긴다.
+  확장자까지 유지되는지** 확인하고 결과를 작업 로그에 남긴다. → 확인됨 (2026-10-31, 10종 모두
+  유지, 같은 이름은 ` (1)`로 자동 변경). MIME은 `MimeTypeMap` 그대로 써도 된다.
 
 작업 폴더는 `cacheDir`가 아니라 `filesDir/work/` — 긴 다운로드 중 시스템이 캐시를
 비우면 실패하기 때문이다.
@@ -468,4 +473,9 @@ adb logcat -d -s YTLoader
 
 - 기본 테스트 영상: "Me at the zoo" `https://www.youtube.com/watch?v=jNQXAC9IVRw` (19초).
 - 재생목록 테스트: 항목 2–3개짜리 짧은 공개 재생목록 — 구현자가 찾고 URL을 작업 로그에 기록.
+  (M3: 짧은 목록을 못 찾아 yt-dlp 테스트용 `PLBB231211A4F62143`(TF2, 29개×약 10분)으로
+  "2번 항목 중 취소"를 검증.)
+- debug 빌드 전용 훅 `DebugDownloadReceiver`(src/debug, shell만 호출 가능한 `DUMP` 권한 요구)로
+  옵션을 지정해 다운로드를 시작할 수 있다 (앱이 포그라운드일 때):
+  `adb shell "am broadcast -n io.github.dev1ck.ytloader/.DebugDownloadReceiver --es url 'URL' --es mode VIDEO --es format mkv --es quality 720 --ez playlist false"`
 - PowerShell에서 `adb exec-out screencap > file`은 바이너리가 깨지므로 위 방식(pull)을 쓴다.

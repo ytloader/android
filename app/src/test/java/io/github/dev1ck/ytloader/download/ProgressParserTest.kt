@@ -17,7 +17,7 @@ class ProgressParserTest {
     )
 
     @Test fun playlistItem() = assertEquals(
-        ParsedLine.Status("재생목록 3 / 12 항목 처리 중..."),
+        ParsedLine.PlaylistItem(3, 12, "재생목록 3 / 12 항목 처리 중..."),
         ProgressParser.parse("[download] Downloading item 3 of 12"),
     )
 
