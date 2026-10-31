@@ -95,7 +95,7 @@
 ## M6 마감
 
 - [x] SPEC 7장 표의 각 행을 확인하고 결과를 작업 로그에 표로 남김
-- [ ] ⏸ 앱 라이선스 결정(SPEC O-4), 릴리스 키스토어 생성(사용자와 함께)
+- [ ] ⏸ 앱 라이선스 결정(SPEC O-4) → GPL-3.0 결정·적용, 릴리스 키스토어 생성(사용자와 함께) — 대기
 - [ ] release 빌드(arm64-v8a, 서명), README(설치·사용법·Play 미배포 이유)
 - [ ] 완료 조건: `.\gradlew.bat testDebugUnitTest lintRelease assembleRelease` 성공
 
@@ -293,3 +293,5 @@
   lint 오류 0(경고 7: targetSdk 36·release arm64만·SPEC 문구 "..." 4건·`fullBackupContent` 권고 — 모두 의도),
   `app-release-unsigned.apk` 78.3MB (arm64-v8a).
 - ⏸ 사용자 결정 대기: 앱 라이선스(SPEC O-4), 릴리스 키스토어 생성(사용자와 함께).
+- 2026-10-31 사용자 결정: 앱 라이선스 **GPL-3.0** → `LICENSE`(gnu.org 원문), README·SPEC O-4 갱신.
+  실기기 연결됨: SM-S948N, Android 17 (API 37), arm64-v8a.

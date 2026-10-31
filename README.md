@@ -65,5 +65,6 @@ keyPassword=...
 
 ## 라이선스
 
-(결정 대기 — SPEC O-4) 이 앱은 GPL-3.0인
-[youtubedl-android](https://github.com/yausername/youtubedl-android)를 포함합니다.
+[GPL-3.0](LICENSE). 이 앱은 GPL-3.0인
+[youtubedl-android](https://github.com/yausername/youtubedl-android)를 포함하며, 그 안에
+yt-dlp(Unlicense), Python, ffmpeg, QuickJS가 들어 있습니다.
