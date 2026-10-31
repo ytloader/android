@@ -95,9 +95,9 @@
 ## M6 마감
 
 - [x] SPEC 7장 표의 각 행을 확인하고 결과를 작업 로그에 표로 남김
-- [ ] ⏸ 앱 라이선스 결정(SPEC O-4) → GPL-3.0 결정·적용, 릴리스 키스토어 생성(사용자와 함께) — 대기
-- [ ] release 빌드(arm64-v8a, 서명), README(설치·사용법·Play 미배포 이유)
-- [ ] 완료 조건: `.\gradlew.bat testDebugUnitTest lintRelease assembleRelease` 성공
+- [x] ⏸ 앱 라이선스 결정(SPEC O-4) → GPL-3.0 결정·적용, 릴리스 키스토어 생성(사용자와 함께)
+- [x] release 빌드(arm64-v8a, 서명), README(설치·사용법·Play 미배포 이유)
+- [x] 완료 조건: `.\gradlew.bat testDebugUnitTest lintRelease assembleRelease` 성공
 
 ---
 
@@ -295,3 +295,29 @@
 - ⏸ 사용자 결정 대기: 앱 라이선스(SPEC O-4), 릴리스 키스토어 생성(사용자와 함께).
 - 2026-10-31 사용자 결정: 앱 라이선스 **GPL-3.0** → `LICENSE`(gnu.org 원문), README·SPEC O-4 갱신.
   실기기 연결됨: SM-S948N, Android 17 (API 37), arm64-v8a.
+
+### 2026-10-31 M6 키스토어 · 릴리스 서명 · 실기기 자동 테스트
+
+- 키스토어: 사용자가 `C:\Users\firej\keys\ytloader-release.jks`(PKCS12, 별칭 `ytloader`, RSA 4096, 10000일) 생성,
+  `keystore.properties`(Git 제외) 작성. 서명 인증서 `CN=dev1ck, O=YTLoader`,
+  SHA-256 `9d45d10c55603e4d3586c6e149a4432e6bb6a6431df378e7bdfffd5b7fa8e981`.
+  주의: 비밀번호를 입력한 파일 내용이 세션 대화에 표시됐음 → 사용자에게 알림(필요하면 `keytool -storepasswd`로 변경).
+- 증거: `testDebugUnitTest lintRelease assembleRelease` → BUILD SUCCESSFUL, 47 tests, lint 오류 0,
+  `app-release.apk` 78.3MB, `apksigner verify` 통과(v2, 서명자 1).
+- 실기기 (SM-S948N, Android 17 / API 37, arm64-v8a) — 측정은 uiautomator 확인 지연 약 1초 포함:
+
+  | 항목 | 결과 |
+  |---|---|
+  | 엔진 준비 (첫 실행 / 두 번째) | 3.3초 / 2.5초 |
+  | mp3 + 썸네일 + 메타 (내장 2025.11.12) | 12.3초, 661,756 B |
+  | yt-dlp 업데이트 | 5.1초 → v2026.10.26 |
+  | mp3 / mp4 1080 (2026.10.26) | 14.4초 / 16.4초 (mp4 썸네일 mutagen) |
+  | 화면 잠금 상태 | 재생목록 다운로드가 백그라운드에서 계속 진행(5개 항목 완료 확인) |
+  | 다운로드 중 강제 종료 | 하위 프로세스 없음, 작업 폴더 남음 → 다음 실행 시 삭제, 공용 저장소에 부분 파일 없음 |
+  | 재생목록 변환 중 취소 | 2.7초에 서비스 종료, 하위 프로세스 없음, `001 - ... Intro.mp3`(18,003,547 B)만 저장, "(완료된 1개 파일은 저장됨)" |
+  | 릴리스 APK 설치 | 공유 인텐트로 URL 채움 → 알림 권한 요청 → 12.2초에 완료 (`build/device_release_done.png`) |
+
+  SPEC O-2: 실기기에서도 실용적 → 해소.
+- 테스트 중에만 `stay_on_while_plugged_in`을 켰고(원래 0) 끝난 뒤 0으로 되돌림. 휴대폰의 테스트 파일은 삭제.
+  휴대폰에는 현재 **릴리스 서명 앱**이 설치돼 있음(디버그 앱은 제거).
+- 남은 것 (사용자 직접): YouTube 앱 → 공유, 실제 계정 앱 내 로그인 → 비공개/연령 제한 영상(SPEC O-1), 데스크톱판 cookies.txt 가져오기.
