@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.YTLoader" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- 화면은 Compose 테마(ui/theme/Theme.kt)가 그린다. 여기서는 시작(스플래시) 창 배경만 다크/라이트를 따른다. -->
+    <style name="Theme.YTLoader" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
 </resources>

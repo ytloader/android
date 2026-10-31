@@ -425,8 +425,9 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
 
 - **2026-10-31 UI 개편** (사용자 결정, SPEC 5장): 메인은 URL 카드 + 제목 카드 + 세그먼트 버튼(모드) +
   가로 스크롤 FilterChip(포맷·품질) + 옵션 스위치 카드, 하단 고정 영역(결과 줄 + [다운로드] / 진행 패널).
-  로그인·yt-dlp 업데이트·저장 위치는 `SettingsSheet`(ModalBottomSheet). 테마는 고정 브랜드 색
-  (`ui/theme/Theme.kt`, 라이트·다크), 큰 모서리(16/24dp).
+  로그인·yt-dlp 업데이트·저장 위치는 `SettingsSheet`(ModalBottomSheet). 테마는 Windows판과 같은 Fluent 색 토큰
+  (`ui/theme/Theme.kt`의 `DarkTokens`·`LightTokens` 한 곳 → M3 ColorScheme + `YTLoaderTheme.colors`(성공·경고·강조 글자·
+  카드 테두리)), 모서리 카드 8dp·칩/입력 4dp. 시작 창 배경만 `res/values(-night)/colors.xml`에 같은 배경색을 둔다.
   아이콘: 의존성 추가 없이 Material 아이콘 경로를 `res/drawable/ic_*.xml` 벡터로 넣는다
   (material-icons-core에 없는 download·paste·music·movie·folder·link·open·playlist).
   - 제목 미리보기(FR-14): `MainViewModel`이 입력 0.7초 후 `engine.query()`(`TitlePreview.options`)를

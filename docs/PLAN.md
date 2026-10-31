@@ -444,3 +444,17 @@
 - ⏸ 남은 검증: "권한 허용"은 사용자 기기 보안 설정이라 세션이 켜지 못함(차단됨) → 사용자가 켠 뒤 설치 완료·버전 0.1.0
   전환 확인, 이후 0.2.0 빌드 재설치. 업데이트 완료 알림(MY_PACKAGE_REPLACED)은 미확인.
 - 휴대폰에는 현재 검증용 빌드(0.0.9, 릴리스 서명)가 설치돼 있음.
+
+### 2026-10-31 Windows판과 테마 색 통일 (사용자 요청)
+
+- 사용자가 준 Fluent 색 토큰(다크/라이트 20종)과 디자인 토큰을 `Theme.kt`의 `DarkTokens`·`LightTokens` 한 곳에 넣고,
+  M3 ColorScheme과 확장 색(`YTLoaderTheme.colors`: 강조 글자·카드 테두리·글자 3차·성공·경고)을 여기서 만든다.
+  dynamic color는 원래 미사용, 시스템 다크 모드 추종도 원래 있음. 시작 창 배경(`values(-night)/colors.xml`)을 추가해 다크 모드 흰 스플래시 제거.
+- [구현자 판단]: 선택 칩·세그먼트는 호출부에서 primary로(M3 기본은 secondaryContainer인데 그게 진행 바 트랙·톤 버튼과 공유됨),
+  secondaryContainer·surfaceVariant = 보조 채움, primaryContainer(앱 업데이트 배너) = 카드, surfaceTint = 카드(고도 색조 없음),
+  글자·외곽선 버튼은 강조 글자색(라이트 primary를 글자로 쓰면 4.1~4.4:1), 성공 결과 아이콘은 성공색,
+  미선택 포맷·품질 칩은 입력 컨트롤 배경(데스크톱판 드롭다운 역할, 라이트에서 테두리만으로는 안 보임).
+- 증거: `testDebugUnitTest lintDebug assembleDebug` 성공(65 tests, lint 오류 0·경고 8 기존).
+  에뮬레이터 `build/theme/`: `light_main`·`dark_main`, `light_settings`·`dark_settings`, `light_progress`·`dark_progress`,
+  `light_done`·`dark_done`(픽셀 확인: 카드 #FBFBFB/#2B2B2B, 하단 바 #F9F9F9/#282828, 배경 #F3F3F3/#202020), `title_compare`.
+- 참고: 실기기가 연결된 상태에서 `installDebug`는 휴대폰(릴리스 서명)에서 서명 불일치로 실패 → `adb -s emulator-5554 install`.

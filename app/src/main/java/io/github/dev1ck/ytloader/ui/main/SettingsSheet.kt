@@ -47,6 +47,9 @@ import io.github.dev1ck.ytloader.BuildConfig
 import io.github.dev1ck.ytloader.R
 import io.github.dev1ck.ytloader.download.FileActions
 import io.github.dev1ck.ytloader.login.LoginState
+import io.github.dev1ck.ytloader.ui.theme.YTLoaderTheme
+import io.github.dev1ck.ytloader.ui.theme.accentOutlinedButtonColors
+import io.github.dev1ck.ytloader.ui.theme.accentTextButtonColors
 
 /** ⚙ 설정: 로그인(FR-9·10), yt-dlp 버전·업데이트(FR-8), 저장 위치 안내. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,7 +93,7 @@ fun SettingsSheet(state: MainUiState, viewModel: MainViewModel, onDismiss: () ->
                                 },
                                 enabled = enabled,
                             ) { Text(stringResource(R.string.login)) }
-                            OutlinedButton(onClick = { importLauncher.launch(arrayOf("text/plain", "*/*")) }, enabled = enabled) {
+                            OutlinedButton(onClick = { importLauncher.launch(arrayOf("text/plain", "*/*")) }, enabled = enabled, colors = accentOutlinedButtonColors()) {
                                 Text(stringResource(R.string.import_cookies))
                             }
                         }
@@ -110,7 +113,7 @@ fun SettingsSheet(state: MainUiState, viewModel: MainViewModel, onDismiss: () ->
                             onChange = viewModel::setUseCookies,
                         )
                         Row(Modifier.fillMaxWidth().padding(end = 8.dp, bottom = 8.dp), horizontalArrangement = Arrangement.End) {
-                            TextButton(onClick = viewModel::requestLogout, enabled = enabled) { Text(stringResource(R.string.logout)) }
+                            TextButton(onClick = viewModel::requestLogout, enabled = enabled, colors = accentTextButtonColors()) { Text(stringResource(R.string.logout)) }
                         }
                     }
                 }
@@ -163,9 +166,9 @@ fun SettingsSheet(state: MainUiState, viewModel: MainViewModel, onDismiss: () ->
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 ) {
-                    OutlinedButton(onClick = { folderLauncher.launch(null) }) { Text(stringResource(R.string.storage_change)) }
+                    OutlinedButton(onClick = { folderLauncher.launch(null) }, colors = accentOutlinedButtonColors()) { Text(stringResource(R.string.storage_change)) }
                     if (state.saveFolder != null) {
-                        TextButton(onClick = { viewModel.setSaveFolder(null) }) { Text(stringResource(R.string.storage_reset)) }
+                        TextButton(onClick = { viewModel.setSaveFolder(null) }, colors = accentTextButtonColors()) { Text(stringResource(R.string.storage_reset)) }
                     }
                 }
             }
@@ -187,6 +190,7 @@ private fun SettingsCard(content: @Composable () -> Unit) {
         // 시트 배경이 surfaceContainerLow라 카드는 한 단계 밝게 해야 구분된다.
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         shape = MaterialTheme.shapes.large,
+        border = YTLoaderTheme.cardBorder,
         modifier = Modifier.fillMaxWidth(),
     ) { content() }
 }

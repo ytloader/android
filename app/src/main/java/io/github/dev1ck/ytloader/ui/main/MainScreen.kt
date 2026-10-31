@@ -56,6 +56,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -104,6 +105,9 @@ import io.github.dev1ck.ytloader.download.SavedFile
 import io.github.dev1ck.ytloader.download.ShareRules
 import io.github.dev1ck.ytloader.download.TitlePreview
 import io.github.dev1ck.ytloader.login.LoginState
+import io.github.dev1ck.ytloader.ui.theme.YTLoaderTheme
+import io.github.dev1ck.ytloader.ui.theme.accentOutlinedButtonColors
+import io.github.dev1ck.ytloader.ui.theme.accentTextButtonColors
 import io.github.dev1ck.ytloader.update.AppUpdateState
 import kotlinx.coroutines.launch
 
@@ -142,7 +146,7 @@ fun MainScreen(
                         Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
         bottomBar = { BottomActionArea(state, viewModel, onDownloadClick) },
@@ -198,6 +202,7 @@ private fun AppUpdateBanner(state: MainUiState, viewModel: MainViewModel) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
         shape = MaterialTheme.shapes.large,
+        border = YTLoaderTheme.cardBorder,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -276,6 +281,10 @@ private fun UrlSection(state: MainUiState, viewModel: MainViewModel) {
             singleLine = true,
             enabled = state.inputsEnabled,
             shape = MaterialTheme.shapes.large,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            ),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -324,6 +333,7 @@ private fun TitlePreviewRow(state: MainUiState) {
         is TitleState.Loaded -> Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
             shape = MaterialTheme.shapes.medium,
+            border = YTLoaderTheme.cardBorder,
             modifier = Modifier.fillMaxWidth(),
         ) {
             val info = preview.info
@@ -403,6 +413,10 @@ private fun ModeSelector(state: MainUiState, viewModel: MainViewModel) {
                 selected = state.mode == mode,
                 onClick = { viewModel.setMode(mode) },
                 shape = SegmentedButtonDefaults.itemShape(index, modes.size),
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.primary,
+                    activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
                 enabled = state.inputsEnabled,
                 icon = { Icon(painterResource(icon), null, Modifier.size(18.dp)) },
             ) { Text(stringResource(label)) }
@@ -435,6 +449,12 @@ private fun ChipSection(
                     leadingIcon = if (isSelected) {
                         { Icon(Icons.Filled.Done, null, Modifier.size(FilterChipDefaults.IconSize)) }
                     } else null,
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
                 )
             }
         }
@@ -447,8 +467,9 @@ private fun ChipSection(
 @Composable
 private fun OptionsCard(state: MainUiState, viewModel: MainViewModel) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         shape = MaterialTheme.shapes.large,
+        border = YTLoaderTheme.cardBorder,
     ) {
         OptionRow(
             title = stringResource(R.string.option_thumbnail),
@@ -565,7 +586,7 @@ private fun ProgressPanel(download: DownloadState, viewModel: MainViewModel) {
             )
         }
         Spacer(Modifier.width(12.dp))
-        OutlinedButton(onClick = viewModel::cancelDownload) { Text(stringResource(R.string.cancel)) }
+        OutlinedButton(onClick = viewModel::cancelDownload, colors = accentOutlinedButtonColors()) { Text(stringResource(R.string.cancel)) }
     }
     if (progress != null) {
         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(8.dp))
@@ -613,18 +634,23 @@ private fun CompletionCard(state: MainUiState, viewModel: MainViewModel) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         shape = MaterialTheme.shapes.large,
+        border = YTLoaderTheme.cardBorder,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     icon, null,
-                    tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    tint = when (download) {
+                        is DownloadState.Succeeded -> YTLoaderTheme.colors.success
+                        is DownloadState.Failed -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.primary
+                    },
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                if (isError) TextButton(onClick = viewModel::showFailureDetail) { Text(stringResource(R.string.details)) }
+                if (isError) TextButton(onClick = viewModel::showFailureDetail, colors = accentTextButtonColors()) { Text(stringResource(R.string.details)) }
                 IconButton(onClick = viewModel::dismissResult) { Icon(Icons.Filled.Close, stringResource(R.string.close)) }
             }
             if (files.isNotEmpty()) {
@@ -640,11 +666,13 @@ private fun CompletionCard(state: MainUiState, viewModel: MainViewModel) {
                         }
                         OutlinedButton(
                             onClick = { withExisting { launch(FileActions.shareIntent(it, shareTitle), msgNoApp) } },
+                            colors = accentOutlinedButtonColors(),
                             contentPadding = ActionPadding,
                             modifier = Modifier.weight(1f),
                         ) { ActionLabel(rememberVectorPainter(Icons.Filled.Share), shareTitle) }
                         OutlinedButton(
                             onClick = { launch(FileActions.folderIntent(context, files), msgNoFilesApp) },
+                            colors = accentOutlinedButtonColors(),
                             contentPadding = ActionPadding,
                             modifier = Modifier.weight(1f),
                         ) { ActionLabel(painterResource(R.drawable.ic_folder), stringResource(R.string.folder)) }
@@ -744,7 +772,7 @@ private fun Dialogs(state: MainUiState, viewModel: MainViewModel) {
             icon = { Icon(Icons.Filled.Warning, null) },
             title = { Text(stringResource(R.string.dialog_download_failed_title)) },
             text = { Text(body) },
-            confirmButton = { TextButton(onClick = viewModel::acknowledgeFailure) { Text(stringResource(R.string.ok)) } },
+            confirmButton = { TextButton(onClick = viewModel::acknowledgeFailure, colors = accentTextButtonColors()) { Text(stringResource(R.string.ok)) } },
         )
     }
     when (val dialog = state.dialog) {
@@ -752,20 +780,20 @@ private fun Dialogs(state: MainUiState, viewModel: MainViewModel) {
             onDismissRequest = viewModel::dismissDialog,
             title = { Text(stringResource(R.string.dialog_error_title)) },
             text = { Text(stringResource(R.string.error_engine_init, dialog.message)) },
-            confirmButton = { TextButton(onClick = viewModel::dismissDialog) { Text(stringResource(R.string.ok)) } },
+            confirmButton = { TextButton(onClick = viewModel::dismissDialog, colors = accentTextButtonColors()) { Text(stringResource(R.string.ok)) } },
         )
         MainDialog.LogoutConfirm -> AlertDialog(
             onDismissRequest = viewModel::dismissDialog,
             title = { Text(stringResource(R.string.logout)) },
             text = { Text(stringResource(R.string.logout_confirm)) },
-            confirmButton = { TextButton(onClick = viewModel::confirmLogout) { Text(stringResource(R.string.logout)) } },
-            dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text(stringResource(R.string.cancel)) } },
+            confirmButton = { TextButton(onClick = viewModel::confirmLogout, colors = accentTextButtonColors()) { Text(stringResource(R.string.logout)) } },
+            dismissButton = { TextButton(onClick = viewModel::dismissDialog, colors = accentTextButtonColors()) { Text(stringResource(R.string.cancel)) } },
         )
         is MainDialog.UpdateResult -> AlertDialog(
             onDismissRequest = viewModel::dismissDialog,
             title = { Text(stringResource(R.string.update_ytdlp)) },
             text = { Text(dialog.message) },
-            confirmButton = { TextButton(onClick = viewModel::dismissDialog) { Text(stringResource(R.string.ok)) } },
+            confirmButton = { TextButton(onClick = viewModel::dismissDialog, colors = accentTextButtonColors()) { Text(stringResource(R.string.ok)) } },
         )
         null -> Unit
     }
