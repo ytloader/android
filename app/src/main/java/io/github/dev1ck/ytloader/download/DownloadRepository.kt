@@ -27,6 +27,11 @@ class DownloadRepository {
         _state.update { if (it is DownloadState.Failed) it.copy(acknowledged = true) else it }
     }
 
+    /** 진행 중이 아니면 결과 표시를 지우고 대기 상태로. */
+    fun clearResult() {
+        _state.update { if (it.isActive) it else DownloadState.Idle }
+    }
+
     /** 닫은 오류 대화상자를 다시 연다. */
     fun reopenFailure() {
         _state.update { if (it is DownloadState.Failed) it.copy(acknowledged = false) else it }

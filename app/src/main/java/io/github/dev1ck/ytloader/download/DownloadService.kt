@@ -71,7 +71,7 @@ class DownloadService : Service() {
         timedOut = true
         requestCancel()
         container.downloadRepository.set(
-            DownloadState.Failed(null, getString(R.string.error_timeout), "", savedCount = 0),
+            DownloadState.Failed(null, getString(R.string.error_timeout), ""),
         )
         notifications.showFailed(getString(R.string.error_timeout))
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -123,24 +123,24 @@ class DownloadService : Service() {
             val playlist = request.options.playlist
             val final = when {
                 result.cancelled || (cancelRequested && !result.succeeded) ->
-                    DownloadState.Cancelled(if (playlist) exportQuietly(workDir, currentItem) else 0)
+                    DownloadState.Cancelled(if (playlist) exportQuietly(workDir, currentItem) else emptyList())
                 result.succeeded -> try {
                     DownloadState.Succeeded(MediaStoreExporter(this).export(workDir))
                 } catch (e: Exception) {
                     Log.e(TAG, "export failed", e)
                     val message = getString(R.string.error_export, e.message ?: e.javaClass.simpleName)
-                    DownloadState.Failed(null, message, "", savedCount = 0)
+                    DownloadState.Failed(null, message, "")
                 }
                 else -> {
                     val error = result.lastError ?: getString(R.string.error_unknown)
-                    val saved = if (playlist) exportQuietly(workDir, currentItem) else 0
+                    val saved = if (playlist) exportQuietly(workDir, currentItem) else emptyList()
                     DownloadState.Failed(result.exitCode, error, ErrorHintMapper.hint(error), saved)
                 }
             }
             repository.set(final)
             when (final) {
-                is DownloadState.Succeeded -> notifications.showSucceeded(final.uris, mimeOf(final))
-                is DownloadState.Failed -> notifications.showFailed(final.lastError)
+                is DownloadState.Succeeded -> notifications.showSucceeded(final.files)
+                is DownloadState.Failed -> notifications.showFailed(final.lastError, final.saved)
                 else -> Unit
             }
         } finally {
@@ -153,16 +153,13 @@ class DownloadService : Service() {
         }
     }
 
-    /** 실패·취소한 재생목록에서 완성된 항목만 저장한다 (처리 중이던 [interruptedItem] 제외). 저장한 개수. */
-    private fun exportQuietly(workDir: File, interruptedItem: Int?): Int = try {
-        MediaStoreExporter(this).export(workDir, interruptedItem).size
+    /** 실패·취소한 재생목록에서 완성된 항목만 저장한다 (처리 중이던 [interruptedItem] 제외). */
+    private fun exportQuietly(workDir: File, interruptedItem: Int?): List<SavedFile> = try {
+        MediaStoreExporter(this).export(workDir, interruptedItem)
     } catch (e: Exception) {
         Log.e(TAG, "partial export failed", e)
-        0
+        emptyList()
     }
-
-    private fun mimeOf(state: DownloadState.Succeeded): String? =
-        state.uris.firstOrNull()?.let { contentResolver.getType(it) }
 
     private fun statusText(state: DownloadState): String = when (state) {
         is DownloadState.Running -> state.text

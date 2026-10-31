@@ -1,7 +1,9 @@
 package io.github.dev1ck.ytloader.ui.main
 
+import android.content.ActivityNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,12 +38,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.dev1ck.ytloader.BuildConfig
 import io.github.dev1ck.ytloader.R
+import io.github.dev1ck.ytloader.download.FileActions
 import io.github.dev1ck.ytloader.login.LoginState
 
 /** ⚙ 설정: 로그인(FR-9·10), yt-dlp 버전·업데이트(FR-8), 저장 위치 안내. */
@@ -133,11 +137,22 @@ fun SettingsSheet(state: MainUiState, viewModel: MainViewModel, onDismiss: () ->
 
             SectionLabel(stringResource(R.string.section_storage))
             SettingsCard {
+                val context = LocalContext.current
+                val noFilesApp = stringResource(R.string.error_no_files_app)
                 ListItem(
                     headlineContent = { Text("Download/YTLoader") },
                     supportingContent = { Text(stringResource(R.string.storage_desc)) },
                     leadingContent = { Icon(painterResource(R.drawable.ic_folder), null) },
+                    trailingContent = { Icon(painterResource(R.drawable.ic_open), stringResource(R.string.folder)) },
                     colors = transparentListItem(),
+                    modifier = Modifier.clickable {
+                        val intent = FileActions.folderIntent(context, null)
+                        try {
+                            if (intent != null) context.startActivity(intent) else viewModel.showMessage(noFilesApp)
+                        } catch (e: ActivityNotFoundException) {
+                            viewModel.showMessage(noFilesApp)
+                        }
+                    },
                 )
             }
 

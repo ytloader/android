@@ -6,7 +6,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -48,28 +47,39 @@ class DownloadNotifications(private val context: Context) {
 
     fun notifyProgress(text: String, progress: Float?) = post(ID_PROGRESS, progress(text, progress))
 
-    fun showSucceeded(uris: List<Uri>, mimeOfFirst: String?) {
-        val first = uris.firstOrNull()
-        val tap = if (first == null) openAppIntent() else {
-            val view = Intent(Intent.ACTION_VIEW).setDataAndType(first, mimeOfFirst ?: "*/*")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            PendingIntent.getActivity(context, REQ_VIEW, view, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        }
-        post(ID_RESULT, result(context.getString(R.string.notification_succeeded_title), context.getString(R.string.status_succeeded), tap))
+    /** 탭하면 첫 파일을 열고, [공유]·[폴더] 동작을 붙인다 (FR-7, FR-12). */
+    fun showSucceeded(files: List<SavedFile>) {
+        val first = files.firstOrNull()
+        val tap = if (first == null) openAppIntent() else activity(REQ_VIEW, FileActions.openIntent(first))
+        post(ID_RESULT, result(context.getString(R.string.notification_succeeded_title), context.getString(R.string.status_succeeded), tap, files))
     }
 
-    fun showFailed(text: String) =
-        post(ID_RESULT, result(context.getString(R.string.notification_failed_title), text, openAppIntent()))
+    /** 실패해도 재생목록에서 저장한 파일이 있으면 [공유]·[폴더]를 붙인다. */
+    fun showFailed(text: String, saved: List<SavedFile> = emptyList()) =
+        post(ID_RESULT, result(context.getString(R.string.notification_failed_title), text, openAppIntent(), saved))
 
-    private fun result(title: String, text: String, tap: PendingIntent): Notification =
-        NotificationCompat.Builder(context, CHANNEL_RESULT)
+    private fun result(title: String, text: String, tap: PendingIntent, files: List<SavedFile>): Notification {
+        val builder = NotificationCompat.Builder(context, CHANNEL_RESULT)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true)
             .setContentIntent(tap)
-            .build()
+        if (files.isNotEmpty()) {
+            val shareTitle = context.getString(R.string.share)
+            builder.addAction(0, shareTitle, activity(REQ_SHARE, FileActions.shareIntent(files, shareTitle)))
+            FileActions.folderIntent(context, ShareRules.commonSubDir(files.map { it.subDir }))?.let {
+                builder.addAction(0, context.getString(R.string.folder), activity(REQ_FOLDER, it))
+            }
+        }
+        return builder.build()
+    }
+
+    private fun activity(requestCode: Int, intent: Intent): PendingIntent = PendingIntent.getActivity(
+        context, requestCode, intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
 
     private fun post(id: Int, notification: Notification) {
         // 권한이 없으면 조용히 건너뛴다 (진행은 앱 화면에서 보임 — SPEC 7장).
@@ -99,5 +109,7 @@ class DownloadNotifications(private val context: Context) {
         private const val REQ_OPEN = 0
         private const val REQ_CANCEL = 1
         private const val REQ_VIEW = 2
+        private const val REQ_SHARE = 3
+        private const val REQ_FOLDER = 4
     }
 }

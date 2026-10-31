@@ -396,6 +396,14 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
     `title-<UUID>` processId로 실행, 새 입력·다운로드 시작 시 `engine.cancel()`로 취소.
   - 클립보드 제안(FR-13): 화면이 포커스를 얻고 입력란이 비었을 때 `ClipDescription.timestamp`가
     바뀌었을 때만 `primaryClip`을 읽는다(Android 12+ 알림 반복 방지). 판정은 `UrlExtractor.isYouTube`.
+  - 완료 카드(FR-12): `DownloadState.Succeeded/Failed/Cancelled`가 `SavedFile`(uri, MediaStore가 정한 실제
+    이름, 크기, MIME, 하위 폴더) 목록을 갖는다(`MediaStoreExporter`가 insert 후 DISPLAY_NAME을 다시 읽음).
+    `download/FileActions.kt`가 열기·공유(`ACTION_SEND`/`SEND_MULTIPLE` + ClipData + 읽기 권한, chooser)·
+    폴더(`ACTION_VIEW` + `DocumentsContract.buildDocumentUri("com.android.externalstorage.documents",
+    "primary:Download/YTLoader[/하위]")`, 타입 `vnd.android.document/directory` → 없으면 `ACTION_VIEW_DOWNLOADS`)
+    Intent를 만든다. 화면·완료 알림·설정 시트가 같은 함수를 쓴다. 규칙(문서 ID, 공유 MIME, 공통 하위 폴더)은
+    순수 `ShareRules`. 폴더 Intent를 미리 확인하려고 매니페스트에 `<queries>`(VIEW 디렉터리, VIEW_DOWNLOADS) 추가.
+    [확인 필요] 삼성 "내 파일"이 폴더 열기를 받는지 실기기 확인 (에뮬레이터는 시스템 파일 앱으로 열림).
   - 앱 아이콘: `docs/design/icon/`의 원본(GPT 생성)에서 투명 전경을 밀도별
     `mipmap-*/ic_launcher_foreground.png`(108dp 기준, 글리프 82% 축소·중앙 정렬)로 만들고,
     배경은 그라데이션 벡터 `drawable/ic_launcher_background.xml`, 단색 테마 아이콘은 같은 전경.

@@ -4,12 +4,13 @@ import android.content.ActivityNotFoundException
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Intent
-import android.net.Uri
+import android.text.format.Formatter
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -39,6 +41,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -73,7 +76,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -89,8 +93,12 @@ import androidx.compose.ui.unit.dp
 import io.github.dev1ck.ytloader.EngineStatus
 import io.github.dev1ck.ytloader.R
 import io.github.dev1ck.ytloader.download.DownloadState
+import io.github.dev1ck.ytloader.download.FileActions
 import io.github.dev1ck.ytloader.download.FormatCatalog
+import io.github.dev1ck.ytloader.download.MediaStoreExporter
 import io.github.dev1ck.ytloader.download.Mode
+import io.github.dev1ck.ytloader.download.SavedFile
+import io.github.dev1ck.ytloader.download.ShareRules
 import io.github.dev1ck.ytloader.login.LoginState
 import kotlinx.coroutines.launch
 
@@ -412,7 +420,7 @@ private fun BottomActionArea(state: MainUiState, viewModel: MainViewModel, onDow
             if (download.isActive) {
                 ProgressPanel(download, viewModel)
             } else {
-                ResultRow(state, viewModel)
+                CompletionCard(state, viewModel)
                 Button(
                     onClick = onDownloadClick,
                     enabled = state.downloadEnabled,
@@ -465,71 +473,136 @@ private fun ProgressPanel(download: DownloadState, viewModel: MainViewModel) {
     }
 }
 
+/** 완료·실패·취소 결과와 저장한 파일의 [열기]·[공유]·[폴더] (FR-7, FR-12). */
 @Composable
-private fun ResultRow(state: MainUiState, viewModel: MainViewModel) {
+private fun CompletionCard(state: MainUiState, viewModel: MainViewModel) {
+    val download = state.downloadState
+    val files = when (download) {
+        is DownloadState.Succeeded -> download.files
+        is DownloadState.Failed -> download.saved
+        is DownloadState.Cancelled -> download.saved
+        else -> return
+    }
     val context = LocalContext.current
-    val noApp = stringResource(R.string.error_no_app_to_open)
-    val savedCount = when (val d = state.downloadState) {
-        is DownloadState.Failed -> d.savedCount
-        is DownloadState.Cancelled -> d.savedCount
-        else -> 0
-    }
-    val saved = if (savedCount > 0) " " + stringResource(R.string.status_saved_suffix, savedCount) else ""
-    when (val d = state.downloadState) {
-        is DownloadState.Succeeded -> ResultLine(
-            icon = Icons.Filled.CheckCircle,
-            text = stringResource(R.string.status_succeeded),
-            action = d.uris.firstOrNull()?.let { uri ->
-                ResultAction(stringResource(R.string.open), R.drawable.ic_open) { openFile(context, uri) { viewModel.showMessage(noApp) } }
-            },
-        )
-        is DownloadState.Failed -> ResultLine(
-            icon = Icons.Filled.Warning,
-            text = stringResource(R.string.status_failed_short) + saved,
-            action = ResultAction(stringResource(R.string.details), null, viewModel::showFailureDetail),
-            isError = true,
-        )
-        is DownloadState.Cancelled -> ResultLine(
-            icon = Icons.Filled.Close,
-            text = stringResource(R.string.status_cancelled) + saved,
-            action = null,
-        )
-        else -> Unit
-    }
-}
+    val msgNotFound = stringResource(R.string.error_file_not_found)
+    val msgNoApp = stringResource(R.string.error_no_app_to_open)
+    val msgNoFilesApp = stringResource(R.string.error_no_files_app)
+    val shareTitle = stringResource(R.string.share)
 
-private data class ResultAction(val label: String, val icon: Int?, val onClick: () -> Unit)
+    // 사용자가 그사이 파일을 지웠을 수 있으므로 누를 때마다 남은 파일만 쓴다.
+    fun withExisting(block: (List<SavedFile>) -> Unit) {
+        val existing = FileActions.existing(context, files)
+        if (existing.isEmpty()) viewModel.showMessage(msgNotFound) else block(existing)
+    }
+    fun launch(intent: Intent?, failure: String) {
+        if (intent == null) return viewModel.showMessage(failure)
+        try {
+            context.startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            viewModel.showMessage(failure)
+        }
+    }
 
-@Composable
-private fun ResultLine(icon: ImageVector, text: String, action: ResultAction?, isError: Boolean = false) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-            icon, null,
-            tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(20.dp),
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        if (action != null) {
-            TextButton(onClick = action.onClick) {
-                if (action.icon != null) {
-                    Icon(painterResource(action.icon), null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
+    val isError = download is DownloadState.Failed
+    val (icon, title) = when (download) {
+        is DownloadState.Succeeded -> Icons.Filled.CheckCircle to stringResource(R.string.result_succeeded)
+        is DownloadState.Failed -> Icons.Filled.Warning to stringResource(R.string.status_failed_short)
+        else -> Icons.Filled.Close to stringResource(R.string.status_cancelled)
+    }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    icon, null,
+                    tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                if (isError) TextButton(onClick = viewModel::showFailureDetail) { Text(stringResource(R.string.details)) }
+                IconButton(onClick = viewModel::dismissResult) { Icon(Icons.Filled.Close, stringResource(R.string.close)) }
+            }
+            if (files.isNotEmpty()) {
+                Column(Modifier.padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FileSummary(files, partial = download !is DownloadState.Succeeded)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (download is DownloadState.Succeeded) {
+                            FilledTonalButton(
+                                onClick = { withExisting { launch(FileActions.openIntent(it.first()), msgNoApp) } },
+                                contentPadding = ActionPadding,
+                                modifier = Modifier.weight(1f),
+                            ) { ActionLabel(painterResource(R.drawable.ic_open), stringResource(R.string.open)) }
+                        }
+                        OutlinedButton(
+                            onClick = { withExisting { launch(FileActions.shareIntent(it, shareTitle), msgNoApp) } },
+                            contentPadding = ActionPadding,
+                            modifier = Modifier.weight(1f),
+                        ) { ActionLabel(rememberVectorPainter(Icons.Filled.Share), shareTitle) }
+                        OutlinedButton(
+                            onClick = {
+                                val subDir = ShareRules.commonSubDir(files.map { it.subDir })
+                                launch(FileActions.folderIntent(context, subDir), msgNoFilesApp)
+                            },
+                            contentPadding = ActionPadding,
+                            modifier = Modifier.weight(1f),
+                        ) { ActionLabel(painterResource(R.drawable.ic_folder), stringResource(R.string.folder)) }
+                    }
                 }
-                Text(action.label)
             }
         }
     }
 }
 
-private fun openFile(context: android.content.Context, uri: Uri, onNoApp: () -> Unit) {
-    val intent = Intent(Intent.ACTION_VIEW)
-        .setDataAndType(uri, context.contentResolver.getType(uri) ?: "*/*")
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    try {
-        context.startActivity(intent)
-    } catch (e: ActivityNotFoundException) {
-        onNoApp()
+private val ActionPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+
+@Composable
+private fun ActionLabel(icon: Painter, label: String) {
+    Icon(icon, null, Modifier.size(18.dp))
+    Spacer(Modifier.width(6.dp))
+    Text(label, maxLines = 1)
+}
+
+/** 파일 하나면 이름·크기, 여러 개면 폴더 이름·개수. [partial]: 실패·취소 중 저장된 일부. */
+@Composable
+private fun FileSummary(files: List<SavedFile>, partial: Boolean) {
+    val context = LocalContext.current
+    val subDir = ShareRules.commonSubDir(files.map { it.subDir })
+    val location = if (subDir == null) MediaStoreExporter.ROOT else "${MediaStoreExporter.ROOT}/$subDir"
+    val totalSize = Formatter.formatShortFileSize(context, files.sumOf { it.size })
+    val single = files.singleOrNull()
+    val (iconRes, name, meta) = when {
+        single != null -> Triple(
+            when {
+                single.mimeType.startsWith("audio/") -> R.drawable.ic_music
+                single.mimeType.startsWith("video/") -> R.drawable.ic_movie
+                else -> R.drawable.ic_download
+            },
+            single.name,
+            "$totalSize · $location",
+        )
+        else -> Triple(
+            R.drawable.ic_playlist,
+            subDir ?: MediaStoreExporter.ROOT,
+            stringResource(R.string.files_count, files.size) + " · $totalSize",
+        )
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(painterResource(iconRes), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                if (partial) stringResource(R.string.saved_partial, files.size) + " · $meta" else meta,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

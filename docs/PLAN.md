@@ -106,6 +106,8 @@
 - [x] 테마·메인 화면·설정 시트·벡터 아이콘, ViewModel(제목 조회·클립보드), 엔진 `query()`
 - [x] 앱 아이콘: 사용자가 GPT로 만든 원본 → `docs/design/icon/`, 적응형 아이콘 적용
 - [x] 완료 조건: 단위 테스트·린트·릴리스 빌드 통과, 에뮬레이터 스크린샷, 실기기 릴리스 앱 업데이트
+- [x] FR-12 확장: 완료 카드 [열기]·[공유]·[폴더], 완료 알림 [공유]·[폴더], 설정 "저장 위치" → 폴더
+- [ ] 실기기(삼성)에서 [폴더]가 어떤 앱으로 열리는지 확인
 
 ---
 
@@ -362,3 +364,23 @@
   제목 카드와 설정 시트 카드는 두 모드 모두 `surfaceContainerHigh`(시트 배경과 같은 색이라 안 보이던 문제도 해결).
 - 증거: 에뮬레이터 `build/r2_dark_main.png`, `r2_dark_settings.png`, `r2_light_main.png`, `r2_light_settings.png`.
   `testDebugUnitTest lintRelease assembleRelease` 성공(55 tests, lint 오류 0), 휴대폰 릴리스 앱 업데이트 완료.
+
+### 2026-10-31 M7 완료 후 공유 · 폴더 열기 (FR-12 확장)
+
+- 사용자 요청: 받은 파일을 바로 공유하고, 파일 앱에서 저장 위치로 바로 이동. 설계를 먼저 제시하고 결정받음:
+  완료 카드(A안) + 완료 알림 [공유]·[폴더] + 설정 "저장 위치" 탭. 마지막 결과 유지(앱 재시작 후)는 하지 않음.
+- 설계 전 확인: 에뮬레이터에서 `ACTION_VIEW` + 폴더 문서 URI(`vnd.android.document/directory`)가
+  시스템 파일 앱(`com.google.android.documentsui` FilesActivity)으로 `Download › YTLoader`를 바로 연다
+  (`build/r3_folder_view.png`). 휴대폰은 연결이 끊겨 삼성 동작은 미확인.
+- 구현: `SavedFile`(실제 저장 이름·크기·MIME·하위 폴더), `ShareRules`(순수, 테스트 3), `FileActions`,
+  `DownloadState`가 저장 파일 목록을 가짐, 완료 카드 UI, 알림 동작, 설정 시트 저장 위치 클릭, `<queries>`.
+- 증거 (에뮬레이터): 단위 테스트 58 통과, `lintDebug` 오류 0.
+  - 단일 완료 카드 `build/r3_card_single.png` ("Me at the zoo (5).mp3 · 669 kB · Download/YTLoader" — MediaStore가
+    붙인 실제 이름 표시). [공유] → 시스템 공유 시트 "Sharing 1 file" `build/r3_share_sheet.png`.
+    [폴더] → 파일 앱 "Files in YTLoader".
+  - 재생목록 취소(일부 저장) 카드 `build/r3_card_partial.png` ("완료된 1개 저장됨 · 18 MB · Download/YTLoader/Team
+    Fortress 2 [2010 Version]", [공유]·[폴더]). [폴더] → "Files in Team Fortress 2 [2010 Version]"
+    `build/r3_folder_playlist.png`.
+  - 완료 알림 [공유]·[폴더] `build/r3_notification.png`, 알림 [폴더] → 파일 앱. 설정 "저장 위치" → 파일 앱.
+  - 카드의 파일을 셸에서 지운 뒤 [공유] → "파일을 찾을 수 없습니다. 지웠거나 옮겼을 수 있습니다.".
+

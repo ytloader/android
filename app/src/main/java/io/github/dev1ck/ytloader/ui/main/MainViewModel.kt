@@ -164,6 +164,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun showFailureDetail() = container.downloadRepository.reopenFailure()
 
+    /** 완료 카드의 ✕: 결과 표시를 지운다. */
+    fun dismissResult() = container.downloadRepository.clearResult()
+
     private fun cookieFileFor(s: MainUiState) =
         container.cookieStore.file.takeIf { s.loginState is LoginState.LoggedIn && s.useCookies }
 
@@ -253,7 +256,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: IllegalStateException) {
             // 백그라운드 FGS 시작 제한 등. Preparing에 묶여 있지 않도록 실패로 돌린다.
             container.downloadRepository.set(
-                DownloadState.Failed(null, e.message ?: e.javaClass.simpleName, "", savedCount = 0),
+                DownloadState.Failed(null, e.message ?: e.javaClass.simpleName, ""),
             )
         }
     }

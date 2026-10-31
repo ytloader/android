@@ -11,14 +11,14 @@ import java.io.IOException
 /** 작업 폴더의 최종 파일 → 공용 Download/YTLoader/<하위 경로> (ARCHITECTURE 8장). */
 class MediaStoreExporter(private val context: Context) {
 
-    /** 저장된 URI 목록 (상대 경로 순). 복사 실패 시 IOException. [interruptedItem]은 [ExportRules.isExportable] 참고. */
-    fun export(workDir: File, interruptedItem: Int? = null): List<Uri> = workDir.walkTopDown()
+    /** 저장한 파일 목록 (상대 경로 순). 복사 실패 시 IOException. [interruptedItem]은 [ExportRules.isExportable] 참고. */
+    fun export(workDir: File, interruptedItem: Int? = null): List<SavedFile> = workDir.walkTopDown()
         .filter { it.isFile && ExportRules.isExportable(it.name, interruptedItem) }
         .sortedBy { it.relativeTo(workDir).path }
         .map { exportOne(it, workDir) }
         .toList()
 
-    private fun exportOne(file: File, workDir: File): Uri {
+    private fun exportOne(file: File, workDir: File): SavedFile {
         val subDir = file.parentFile!!.relativeTo(workDir).path
         val relativePath = if (subDir.isEmpty()) "$ROOT/" else "$ROOT/$subDir/"
         val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase())
@@ -40,8 +40,14 @@ class MediaStoreExporter(private val context: Context) {
             resolver.delete(uri, null, null)
             throw if (e is IOException) e else IOException(e)
         }
-        return uri
+        return SavedFile(uri, displayName(uri) ?: file.name, file.length(), mime, subDir)
     }
+
+    // 같은 이름이 있으면 MediaStore가 ` (1)`을 붙이므로 실제 이름을 다시 읽는다.
+    private fun displayName(uri: Uri): String? =
+        context.contentResolver.query(uri, arrayOf(MediaStore.Downloads.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
 
     companion object {
         const val ROOT = "Download/YTLoader"
