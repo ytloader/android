@@ -13,7 +13,8 @@
 현재 상태(2026-10-31 확인): 이 PC에는 JDK, Android SDK, Android Studio가 **없고**
 `adb`만 있다(winget `Google.PlatformTools`).
 
-- [ ] 확인: `java -version`(17 이상), `$env:ANDROID_HOME`, `gradle --version`, `adb devices`
+- [x] 확인: `java -version`(17 이상), `$env:ANDROID_HOME`, `gradle --version`, `adb devices`
+      → 실제 상태는 위 설명과 다름. 작업 로그 2026-10-31 M0 참고.
 - [ ] ⏸ 없는 항목에 대해 아래 두 방법을 제시하고 사용자가 고르게 한다. 승인 후 설치.
       - A (GUI, 사용자가 일부 진행): `winget install Google.AndroidStudio` → **사용자가**
         Android Studio를 한 번 실행해 설정 마법사로 SDK·에뮬레이터 설치. 세션은 Studio에
@@ -104,4 +105,15 @@
 형식: `### YYYY-MM-DD Mx 제목` + 무엇을 했는지 / 증거 / 결정·변경 사항 / 남은 문제.
 [구현자 판단]으로 정한 내용도 여기에 한 줄씩 남긴다.
 
-(아직 없음)
+### 2026-10-31 M0 환경 확인 (⏸ 대기)
+
+- 첫 커밋 `7ad7bea` (문서 + `.gitignore`).
+- 실제 환경 (위 "현재 상태" 설명과 다름 — 방법 A의 대부분이 이미 설치돼 있음):
+  - Android Studio 설치됨 (`AI-262.10968.63`). JBR = OpenJDK **25.0.4**.
+  - SDK `%LOCALAPPDATA%\Android\Sdk`: platforms **android-37.0만** 있음(36 없음),
+    build-tools 36.0.0, platform-tools, emulator, system-image android-37.0
+    google_apis_playstore x86_64, `licenses/android-sdk-license` 있음. cmdline-tools 없음.
+  - AVD `Medium_Phone_API_37.0` (x86_64, RAM 2GB). WHPX 사용 가능.
+  - PATH에 `java`·`gradle` 없음, `JAVA_HOME`·`ANDROID_HOME` 미설정.
+  - `adb devices`: 연결된 기기 없음.
+- 사용자 결정 대기: 환경 변수 설정, compileSdk 36 플랫폼 확보 방법, Gradle 래퍼 생성 방법, 테스트 기기.
