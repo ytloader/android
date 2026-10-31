@@ -467,5 +467,8 @@
   업데이트 확인 주소 → `api.github.com/repos/ytloader/android/releases/latest`. SPEC O-5·ARCHITECTURE 갱신(이 로그의 과거 기록은 그대로 둠).
 - 증거: `clean testDebugUnitTest lintDebug assembleDebug` 성공(65 tests, lint 오류 0), APK `package: name='io.github.ytloader'`,
   에뮬레이터 새 설치 → debug 훅 다운로드 완료(`build/theme/pkg_rename_done.png`).
-- 남은 것: 사용자가 조직 생성 → 저장소 이전·이름 변경, Secrets 확인, 로컬 remote 변경 → 새 버전 릴리스.
+- 이전 완료(2026-10-31): 사용자가 조직 `ytloader` 생성 → `gh api .../transfer`로 `ytloader/android`·`ytloader/windows`.
+  Secrets 4개 유지(android), windows 워크플로는 `GITHUB_TOKEN`만 사용. 옛 API 주소는 301 → 따라가면 200.
+  로컬 remote `https://github.com/ytloader/android.git`, 커밋 `f72ba22` push.
+- 남은 것: v0.2.0 초안(Draft)은 옛 앱 ID로 빌드됨 → 게시하지 말고 새 ID로 다시 릴리스. Windows판 코드 수정은 Windows 세션.
   휴대폰의 기존 앱(`io.github.dev1ck.ytloader`)은 업데이트로 넘어갈 수 없으므로 지우고 새로 설치해야 함(쿠키·설정 초기화).
