@@ -386,3 +386,15 @@
 
 - 2026-10-31 실기기 확인: 폴더 처리 앱이 documentsui와 DJI Ronin 두 개. 기본은 시스템 파일 앱으로 열림(사용자 확인 +
   셸 확인 `build/device_folder_nopkg.png`). 안전장치로 documentsui 패키지 직접 지정(유지하기로 함).
+
+### 2026-10-31 첫 릴리스 v0.1.0
+
+- GitHub CLI 2.103.3 설치(winget, 사용자 승인), 사용자가 `gh auth login`(dev1ck), `gh auth setup-git`.
+- 올리기 전 확인: 추적 파일·기록 어디에도 키스토어 비밀번호 값 없음, `keystore.properties`·`*.jks`·쿠키 미추적.
+- 공개 저장소 https://github.com/dev1ck/yt-loader-android 생성, `main` push, 태그 `v0.1.0`.
+- 릴리스 https://github.com/dev1ck/yt-loader-android/releases/tag/v0.1.0 — `YTLoader-0.1.0.apk`
+  (82,308,531 B, arm64-v8a, 서명 `CN=dev1ck, O=YTLoader`, SHA-256
+  `5fe92785fed297f04ad4780409836527dc74b80ff87e48244fd83ee391df6f72` = GitHub 자산 digest), 노트는 기능·설치·제한.
+- 증거: `clean testDebugUnitTest lintRelease assembleRelease` 성공(58 tests, lint 오류 0), `apksigner verify` 통과.
+- 남은 것: SPEC O-1(실제 계정 앱 내 로그인), YouTube 앱 공유·실제 cookies.txt 가져오기는 사용자 실사용으로 확인.
+  다음 버전부터 versionCode를 반드시 올릴 것(현재 1).
