@@ -95,6 +95,14 @@ app/src/main/java/io/github/dev1ck/ytloader/
 "(순수)" 표시 파일은 Android API를 import하지 않는다 → JVM 단위 테스트 대상.
 파일 분할은 [구현자 판단]으로 조정 가능하나 순수/비순수 경계는 유지한다.
 
+M2에서 정한 조정 ([구현자 판단]):
+- `isExportable`은 `download/ExportRules.kt`(순수)로 분리, MediaStoreExporter가 사용.
+- `DownloadOptions`는 순수 경계를 지키려고 `java.io.Serializable`로 두고, Intent에는
+  서비스 쪽 `@Parcelize` 래퍼(url, options, cookieFile)로 담는다.
+- `YtOption`, `ExecResult`, `UpdateResult`는 `engine/YtDlpEngine.kt`(순수)에 둔다.
+- 카탈로그 라벨, 진행 문구, 오류 안내 문구는 순수 로직의 출력이라 Kotlin 상수로 둔다
+  (단위 테스트로 SPEC 문구와 대조). 그 외 화면 문자열은 `strings.xml`.
+
 ## 3. 런타임 구성과 데이터 흐름
 
 ```

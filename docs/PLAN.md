@@ -50,14 +50,14 @@
 
 ## M2 순수 로직 + 단위 테스트
 
-- [ ] FormatCatalog, DownloadOptions
-- [ ] YtDlpArgsBuilder — 골든 예제 E1–E8
-- [ ] ProgressParser
-- [ ] UrlExtractor
-- [ ] NetscapeCookieWriter, CookieFileValidator
-- [ ] ErrorHintMapper
-- [ ] MediaStoreExporter의 파일 제외 규칙(`isExportable`)
-- [ ] 완료 조건: `.\gradlew.bat testDebugUnitTest` 전부 통과 (테스트 수 기록)
+- [x] FormatCatalog, DownloadOptions
+- [x] YtDlpArgsBuilder — 골든 예제 E1–E8
+- [x] ProgressParser
+- [x] UrlExtractor
+- [x] NetscapeCookieWriter, CookieFileValidator
+- [x] ErrorHintMapper
+- [x] MediaStoreExporter의 파일 제외 규칙(`isExportable`)
+- [x] 완료 조건: `.\gradlew.bat testDebugUnitTest` 전부 통과 (테스트 수 기록)
 
 ## M3 다운로드 기본 흐름
 
@@ -161,3 +161,14 @@
   JS 런타임 관련 경고 없음. 내장판은 "older than 90 days" 경고, 추출 시 SABR 경고(정상 동작).
 - 결정: 에뮬레이터 기준 실용적 → 사용자 지시(모든 검증 에뮬레이터, 완성 후 실기기)대로 멈추지 않고 M2 진행.
   실기기 측정은 최종 실기기 테스트에서 다시 기록한다.
+
+### 2026-10-31 M2 순수 로직 + 단위 테스트 완료
+
+- FormatCatalog, DownloadOptions, YtDlpArgsBuilder, ProgressParser, UrlExtractor,
+  NetscapeCookieWriter, CookieFileValidator, ErrorHintMapper, ExportRules(`isExportable`), YtDlpEngine 인터페이스.
+- 증거: `.\gradlew.bat testDebugUnitTest` → BUILD SUCCESSFUL, **46 tests, 0 failures**
+  (ArgsBuilder 9 — E1–E8 + 템플릿 단일 토큰, Catalog 6, Parser 6, Url 6, Export 3,
+  CookieWriter 6, CookieValidator 6, ErrorHint 4).
+- [구현자 판단] 파일 배치·Serializable·문구 상수 위치는 ARCHITECTURE 2장 "M2에서 정한 조정"에 기록.
+- [구현자 판단] CookieFileValidator 도메인 판정은 `youtube.com` 또는 `.youtube.com`으로 끝나는 것만
+  (`notyoutube.com` 같은 유사 도메인 거부). ErrorHint의 로그인 안내는 기본 안내 다음 줄에 붙인다.
