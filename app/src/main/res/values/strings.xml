@@ -17,6 +17,13 @@
     <string name="cancel">취소</string>
     <string name="ok">확인</string>
     <string name="version_unknown">yt-dlp 버전 확인 중...</string>
+    <string name="update_ytdlp">yt-dlp 업데이트</string>
+    <string name="status_updating">yt-dlp 업데이트 중...</string>
+    <string name="update_done">최신 버전으로 업데이트했습니다 (v%1$s)</string>
+    <string name="update_already">이미 최신 버전입니다 (v%1$s)</string>
+    <string name="update_failed">업데이트 실패: %1$s</string>
+    <string name="error_no_url_in_share">공유된 내용에서 URL을 찾지 못했습니다.</string>
+    <string name="message_share_while_busy">진행 중인 다운로드가 끝난 뒤 시작하세요.</string>
 
     <string name="status_engine_initializing">엔진 준비 중...</string>
     <string name="status_preparing">다운로드 준비 중...</string>

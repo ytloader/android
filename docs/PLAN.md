@@ -76,10 +76,10 @@
 
 ## M4 공유 · 설정 유지 · 업데이트
 
-- [ ] FR-2 공유 인텐트 (singleTop, onNewIntent, 진행 중 처리)
-- [ ] FR-11 DataStore 설정 유지
-- [ ] FR-8 업데이트 + 버전 표시
-- [ ] 완료 조건: adb 공유 명령 후 URL이 채워진 스크린샷, 앱 재시작 후 옵션 복원 확인,
+- [x] FR-2 공유 인텐트 (singleTop, onNewIntent, 진행 중 처리)
+- [x] FR-11 DataStore 설정 유지
+- [x] FR-8 업데이트 + 버전 표시
+- [x] 완료 조건: adb 공유 명령 후 URL이 채워진 스크린샷, 앱 재시작 후 옵션 복원 확인,
       업데이트 결과 대화상자 스크린샷
 
 ## M5 로그인
@@ -216,3 +216,25 @@
 
 - SPEC O-3 해소: 표 변경 없음.
 - 남은 것: "로그인 쿠키" 전달은 M5, 설정 유지·공유·업데이트 버튼은 M4.
+
+### 2026-10-31 M4 공유 · 설정 유지 · 업데이트 완료
+
+- FR-2: `ACTION_SEND text/plain` intent-filter, `singleTask`(ARCHITECTURE 11장 기준 — PLAN의 "singleTop" 표기와 다름),
+  `onCreate`(새로 만들 때만)·`onNewIntent`에서 UrlExtractor → ViewModel. 자동 시작 없음.
+- FR-11: `SettingsRepository`(DataStore). 불러오기 전에는 저장하지 않음. `notification_permission_asked` 키 추가.
+- FR-8: [yt-dlp 업데이트] 버튼 + 결과 대화상자, 진행 중 "yt-dlp 업데이트 중..." 및 다른 조작 비활성.
+- 모드 라벨이 비활성 시 흐려지지 않던 것 수정.
+- 증거 (에뮬레이터):
+  - 공유(앱 종료 상태): CLAUDE.md의 명령 → URL 필드 `https://youtu.be/jNQXAC9IVRw` (`build/m4_share.png`).
+  - 공유(실행 중): `look (https://www.youtube.com/watch?v=wRGMlG96Gwg).` → 끝 문자 제거된 URL로 교체,
+    MainActivity 인스턴스 1개(dumpsys `Hist` 1줄).
+  - URL 없는 공유 → "공유된 내용에서 URL을 찾지 못했습니다.", 다운로드 중 공유 → URL만 채우고
+    "진행 중인 다운로드가 끝난 뒤 시작하세요." (`build/m4_share_busy.png`).
+  - 설정 유지: 영상 MKV/720p + 메타✗ + 재생목록✓ → 오디오 FLAC으로 바꾼 뒤 강제 종료·재실행 →
+    오디오 FLAC(음질 비활성), 썸네일✓ 메타✗ 재생목록✓, 영상 전환 시 MKV/720p 복원, URL 빈 값
+    (`build/m4_restored_audio.png`, `build/m4_restored_video.png`).
+  - 업데이트: `pm clear` 후 표시 v2025.11.12 → [업데이트] → "최신 버전으로 업데이트했습니다 (v2026.10.26)"
+    (`build/m4_update_done.png`), 표시 v2026.10.26 = 라이브러리 SharedPrefs `dlpVersion` 2026.10.26.
+    다시 누르면 "이미 최신 버전입니다 (v2026.10.26)". 네트워크 끔 → "업데이트 실패: failed to update youtube-dl:
+    Unable to resolve host "api.github.com"..." (`build/m4_update_failed.png`), 버전 유지.
+  - 실기기 YouTube 앱 → 공유 확인은 최종 실기기 테스트로 미룸.

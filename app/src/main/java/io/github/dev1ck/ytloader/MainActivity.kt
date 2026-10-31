@@ -1,6 +1,7 @@
 package io.github.dev1ck.ytloader
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -23,6 +24,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // 화면 재생성(회전 등)이나 최근 앱에서 다시 열 때는 같은 공유를 다시 처리하지 않는다.
+        if (savedInstanceState == null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
+            handleShare(intent)
+        }
         setContent {
             YTLoaderTheme {
                 val state by viewModel.state.collectAsStateWithLifecycle()
@@ -44,6 +49,18 @@ class MainActivity : ComponentActivity() {
                     },
                 )
             }
+        }
+    }
+
+    // singleTask: 이미 열려 있으면 같은 화면에서 URL만 바꾼다 (FR-2).
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleShare(intent)
+    }
+
+    private fun handleShare(intent: Intent) {
+        if (intent.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+            viewModel.onSharedText(intent.getStringExtra(Intent.EXTRA_TEXT))
         }
     }
 

@@ -404,7 +404,8 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
 ## 12. 설정 저장
 
 DataStore 키: `mode`, `audio_format`, `audio_quality`, `video_format`, `video_resolution`,
-`embed_thumbnail`, `embed_metadata`, `playlist`, `use_cookies`. 값은 카탈로그의 **값**
+`embed_thumbnail`, `embed_metadata`, `playlist`, `use_cookies`, `notification_permission_asked`
+([구현자 판단] 알림 권한을 "첫 다운로드 때 한 번" 묻기 위한 기록). 값은 카탈로그의 **값**
 문자열로 저장(인덱스 아님 — 목록 변경에 안전). 알 수 없는 값이면 첫 항목으로.
 모드별 포맷/품질을 따로 기억한다.
 

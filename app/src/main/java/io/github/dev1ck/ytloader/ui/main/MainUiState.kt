@@ -7,6 +7,7 @@ import io.github.dev1ck.ytloader.download.FormatCatalog
 import io.github.dev1ck.ytloader.download.FormatOption
 import io.github.dev1ck.ytloader.download.Mode
 import io.github.dev1ck.ytloader.download.QualityOption
+import io.github.dev1ck.ytloader.settings.Settings
 
 /** 모드별로 마지막 포맷·품질을 따로 기억한다 (FR-3). */
 data class MainUiState(
@@ -39,9 +40,24 @@ data class MainUiState(
     val downloadEnabled: Boolean get() = !busy && engineReady
     val cancelEnabled: Boolean get() = downloadState.isActive
 
+    val updateEnabled: Boolean get() = !busy && engineReady
+
     fun toOptions() = DownloadOptions(mode, format.value, quality.value, embedThumbnail, embedMetadata, playlist)
+
+    fun applySettings(s: Settings) = copy(
+        mode = s.mode, audioFormat = s.audioFormat, audioQuality = s.audioQuality,
+        videoFormat = s.videoFormat, videoResolution = s.videoResolution,
+        embedThumbnail = s.embedThumbnail, embedMetadata = s.embedMetadata, playlist = s.playlist,
+    )
+
+    fun toSettings(base: Settings) = base.copy(
+        mode = mode, audioFormat = audioFormat, audioQuality = audioQuality,
+        videoFormat = videoFormat, videoResolution = videoResolution,
+        embedThumbnail = embedThumbnail, embedMetadata = embedMetadata, playlist = playlist,
+    )
 }
 
 sealed interface MainDialog {
     data class EngineFailed(val message: String) : MainDialog
+    data class UpdateResult(val message: String) : MainDialog
 }

@@ -114,10 +114,16 @@ fun MainScreen(
                 }
             }
 
-            Text(
-                text = state.ytDlpVersion?.let { "v$it" } ?: stringResource(R.string.version_unknown),
-                style = MaterialTheme.typography.bodySmall,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = state.ytDlpVersion?.let { "v$it" } ?: stringResource(R.string.version_unknown),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedButton(onClick = viewModel::updateYtDlp, enabled = state.updateEnabled) {
+                    Text(stringResource(R.string.update_ytdlp))
+                }
+            }
         }
     }
 
@@ -164,7 +170,7 @@ private fun ModeRow(state: MainUiState, viewModel: MainViewModel) {
                     .padding(end = 12.dp),
             ) {
                 RadioButton(selected = state.mode == mode, onClick = null, enabled = state.inputsEnabled)
-                Text(stringResource(label))
+                Text(stringResource(label), color = contentColor(state.inputsEnabled))
             }
         }
     }
@@ -210,9 +216,13 @@ private fun CheckRow(label: String, checked: Boolean, enabled: Boolean, onChange
         modifier = Modifier.toggleable(checked, enabled = enabled, role = Role.Checkbox, onValueChange = onChange),
     ) {
         Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
-        Text(label, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f))
+        Text(label, color = contentColor(enabled))
     }
 }
+
+@Composable
+private fun contentColor(enabled: Boolean) =
+    if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
 
 @Composable
 private fun ProgressArea(state: MainUiState) {
@@ -238,6 +248,7 @@ private fun statusText(state: MainUiState): String? {
         else -> 0
     }
     val saved = if (savedCount > 0) " " + stringResource(R.string.status_saved_suffix, savedCount) else ""
+    if (state.updating) return stringResource(R.string.status_updating)
     return when (val d = state.downloadState) {
         DownloadState.Idle ->
             if (state.engineStatus == EngineStatus.Initializing) stringResource(R.string.status_engine_initializing) else null
@@ -272,6 +283,12 @@ private fun Dialogs(state: MainUiState, viewModel: MainViewModel) {
             onDismissRequest = viewModel::dismissDialog,
             title = { Text(stringResource(R.string.dialog_error_title)) },
             text = { Text(stringResource(R.string.error_engine_init, dialog.message)) },
+            confirmButton = { TextButton(onClick = viewModel::dismissDialog) { Text(stringResource(R.string.ok)) } },
+        )
+        is MainDialog.UpdateResult -> AlertDialog(
+            onDismissRequest = viewModel::dismissDialog,
+            title = { Text(stringResource(R.string.update_ytdlp)) },
+            text = { Text(dialog.message) },
             confirmButton = { TextButton(onClick = viewModel::dismissDialog) { Text(stringResource(R.string.ok)) } },
         )
         null -> Unit
