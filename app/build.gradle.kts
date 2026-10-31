@@ -13,11 +13,11 @@ val keystoreProperties = rootProject.file("keystore.properties").takeIf { it.isF
 }
 
 android {
-    namespace = "io.github.dev1ck.ytloader"
+    namespace = "io.github.ytloader"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "io.github.dev1ck.ytloader"
+        applicationId = "io.github.ytloader"
         minSdk = 29
         targetSdk = 36
         versionCode = 2

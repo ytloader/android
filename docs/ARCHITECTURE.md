@@ -59,10 +59,10 @@ youtubedl-android 0.18.1 사실 (2026-10-31 확인, GitHub yausername/youtubedl-
 
 ## 2. 프로젝트 구조
 
-단일 모듈 `app`. 패키지 루트 `io.github.dev1ck.ytloader` (SPEC O-5, 기본값).
+단일 모듈 `app`. 패키지 루트 `io.github.ytloader` (SPEC O-5).
 
 ```
-app/src/main/java/io/github/dev1ck/ytloader/
+app/src/main/java/io/github/ytloader/
 ├─ YTLoaderApp.kt              Application. AppContainer 생성, 엔진 초기화 시작, 작업 폴더 정리
 ├─ AppContainer.kt             수동 DI: 아래 싱글턴들을 보관
 ├─ MainActivity.kt             단일 Activity. 공유 인텐트 수신, 화면 전환, 권한 요청
@@ -536,7 +536,7 @@ DataStore 키: `mode`, `audio_format`, `audio_quality`, `video_format`, `video_r
 
 ```powershell
 .\gradlew.bat installDebug
-adb shell "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT 'title https://youtu.be/jNQXAC9IVRw' -n io.github.dev1ck.ytloader/.MainActivity"
+adb shell "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT 'title https://youtu.be/jNQXAC9IVRw' -n io.github.ytloader/.MainActivity"
 New-Item -ItemType Directory -Force build | Out-Null                                # pull 대상 폴더
 adb shell screencap -p /sdcard/shot.png; adb pull /sdcard/shot.png build/shot.png   # 스크린샷 (Read로 확인)
 adb shell uiautomator dump /sdcard/ui.xml; adb pull /sdcard/ui.xml build/ui.xml    # 버튼 좌표 찾기
@@ -551,5 +551,5 @@ adb logcat -d -s YTLoader
   "2번 항목 중 취소"를 검증.)
 - debug 빌드 전용 훅 `DebugDownloadReceiver`(src/debug, shell만 호출 가능한 `DUMP` 권한 요구)로
   옵션을 지정해 다운로드를 시작할 수 있다 (앱이 포그라운드일 때):
-  `adb shell "am broadcast -n io.github.dev1ck.ytloader/.DebugDownloadReceiver --es url 'URL' --es mode VIDEO --es format mkv --es quality 720 --ez playlist false"`
+  `adb shell "am broadcast -n io.github.ytloader/.DebugDownloadReceiver --es url 'URL' --es mode VIDEO --es format mkv --es quality 720 --ez playlist false"`
 - PowerShell에서 `adb exec-out screencap > file`은 바이너리가 깨지므로 위 방식(pull)을 쓴다.

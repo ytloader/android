@@ -458,3 +458,14 @@
   에뮬레이터 `build/theme/`: `light_main`·`dark_main`, `light_settings`·`dark_settings`, `light_progress`·`dark_progress`,
   `light_done`·`dark_done`(픽셀 확인: 카드 #FBFBFB/#2B2B2B, 하단 바 #F9F9F9/#282828, 배경 #F3F3F3/#202020), `title_compare`.
 - 참고: 실기기가 연결된 상태에서 `installDebug`는 휴대폰(릴리스 서명)에서 서명 불일치로 실패 → `adb -s emulator-5554 install`.
+
+### 2026-10-31 GitHub 조직 이전 준비: 패키지 `io.github.ytloader`
+
+- 사용자 결정: 조직 `ytloader`, 저장소 `ytloader/windows`(← dev1ck/yt-loader)·`ytloader/android`(← dev1ck/yt-loader-android),
+  macOS·iOS는 이후 `ytloader/macos`·`ytloader/ios`. 다른 사람에게 배포된 적이 없어 지금 applicationId와 코드 패키지를 함께 변경.
+- applicationId·namespace·소스 패키지 `io.github.dev1ck.ytloader` → `io.github.ytloader`(main·debug·test 디렉터리 이동),
+  업데이트 확인 주소 → `api.github.com/repos/ytloader/android/releases/latest`. SPEC O-5·ARCHITECTURE 갱신(이 로그의 과거 기록은 그대로 둠).
+- 증거: `clean testDebugUnitTest lintDebug assembleDebug` 성공(65 tests, lint 오류 0), APK `package: name='io.github.ytloader'`,
+  에뮬레이터 새 설치 → debug 훅 다운로드 완료(`build/theme/pkg_rename_done.png`).
+- 남은 것: 사용자가 조직 생성 → 저장소 이전·이름 변경, Secrets 확인, 로컬 remote 변경 → 새 버전 릴리스.
+  휴대폰의 기존 앱(`io.github.dev1ck.ytloader`)은 업데이트로 넘어갈 수 없으므로 지우고 새로 설치해야 함(쿠키·설정 초기화).

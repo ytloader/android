@@ -78,7 +78,7 @@ WinForms)이 이미 있고, 이 프로젝트는 같은 기능을 Android 앱으�
   작업 스택 안에 두 번째 인스턴스가 생기지 않아야 한다).
 - 다운로드 진행 중에 공유받으면 URL만 채우고 "진행 중인 다운로드가 끝난 뒤 시작하세요." 표시.
 - 수용 기준: PowerShell에서
-  `adb shell "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT 'title https://youtu.be/jNQXAC9IVRw' -n io.github.dev1ck.ytloader/.MainActivity"`
+  `adb shell "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT 'title https://youtu.be/jNQXAC9IVRw' -n io.github.ytloader/.MainActivity"`
   실행 시 URL 필드가 `https://youtu.be/jNQXAC9IVRw`가 된다. (공백이 든 값은 원격 셸에서
   쪼개지므로 작은따옴표로 한 번 더 감싼다.) 실기기에서 YouTube 앱 → 공유로도 한 번 확인한다.
 
@@ -238,7 +238,7 @@ WinForms)이 이미 있고, 이 프로젝트는 같은 기능을 Android 앱으�
 ### FR-15 앱 자체 업데이트 (2026-10-31 추가, 사용자 요청)
 
 - 앱이 시작할 때(프로세스마다 한 번) GitHub 최신 정식 릴리스
-  (`api.github.com/repos/dev1ck/yt-loader-android/releases/latest`)를 확인해, 태그(`v0.2.0`)가 앱 버전보다
+  (`api.github.com/repos/ytloader/android/releases/latest`)를 확인해, 태그(`v0.2.0`)가 앱 버전보다
   새것이고 APK 첨부가 있으면 메인 화면 맨 위에 배너를 보인다: "새 버전 v0.2.0", "업데이트하면 앱이 닫혔다가 새 버전으로
   바뀝니다", [업데이트], ✕(이번 실행 동안 숨김). 확인 실패는 알리지 않는다. debug 빌드는 확인하지 않는다(서명이 다름).
 - [업데이트] → 배너에 "새 버전 받는 중 N%" 진행 막대 → "설치 중…" → 설치. 받는 동안·설치 중에는 [다운로드]를 막고,
@@ -399,7 +399,7 @@ WinForms)이 이미 있고, 이 프로젝트는 같은 기능을 Android 앱으�
 | O-2 | 내장 QuickJS로 YouTube 추출 시간이 실용적인가 (구버전 QuickJS는 수 분 걸릴 수 있음) | M1 스파이크 | 측정값 보고 후 사용자 — 에뮬레이터 측정(2026-10-31): 최신 yt-dlp에서 추출 약 10초, 19초 영상 mp3 약 24초로 실용적. 실기기(SM-S948N, 2026-10-31): mp3 12–14초, mp4 1080 16초로 실용적 — **해소** |
 | O-3 | 라이브러리 내장 Python에서 포맷별 썸네일 삽입이 되는가 (m4a/opus/flac은 mutagen 필요 가능) — **해소(2026-10-31)**: 내장 Python에 mutagen 있음. mp3·m4a·opus·flac·mp4는 attached_pic 스트림, mkv는 첨부 파일로 삽입 확인. 표 변경 없음 | M3 | 구현자: 안 되는 포맷은 이 문서 6장 표의 "썸네일 지원"을 X로 고치고, 카탈로그·테스트·골든 예제를 함께 갱신한 뒤 보고 |
 | O-4 | 앱 라이선스 (Seal은 GPL-3.0, youtubedl-android도 **GPL-3.0** 확인 — 포함해 배포하면 앱도 GPL-3.0 호환이어야 함) — **결정(2026-10-31): GPL-3.0**, 저장소 루트 `LICENSE` | 릴리스 전 | 사용자 |
-| O-5 | 패키지명 | — | 결정됨: `io.github.dev1ck.ytloader`로 진행하고 멈추지 않는다. 사용자가 바꾸라고 할 때만 변경 |
+| O-5 | 패키지명 | — | 결정됨: `io.github.ytloader` (applicationId·코드 패키지 동일). 2026-10-31 GitHub 조직 `ytloader`로 옮기며 `io.github.dev1ck.ytloader`에서 변경 |
 
 Google Play 정책 근거: 서비스 약관을 위반하는 앱 금지, Play 외부에서 실행 코드
 다운로드 금지(yt-dlp 앱 내 업데이트가 해당), 저작물 무단 다운로드 앱 금지.

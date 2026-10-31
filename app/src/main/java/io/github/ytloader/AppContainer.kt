@@ -1,0 +1,38 @@
+package io.github.ytloader
+
+import android.content.Context
+import io.github.ytloader.download.DownloadRepository
+import io.github.ytloader.engine.YoutubeDlAndroidEngine
+import io.github.ytloader.engine.YtDlpEngine
+import io.github.ytloader.login.CookieStore
+import io.github.ytloader.settings.SettingsRepository
+import io.github.ytloader.update.AppUpdateState
+import io.github.ytloader.update.AppUpdater
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import java.io.File
+
+sealed interface EngineStatus {
+    data object Initializing : EngineStatus
+    data object Ready : EngineStatus
+    data class Failed(val message: String) : EngineStatus
+}
+
+/** 수동 DI. Application에서 한 번 만든다. */
+class AppContainer(context: Context) {
+    val appContext: Context = context.applicationContext
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val engine: YtDlpEngine = YoutubeDlAndroidEngine(appContext)
+    val engineStatus = MutableStateFlow<EngineStatus>(EngineStatus.Initializing)
+    val ytDlpVersion = MutableStateFlow<String?>(null)
+    /** 첫 실행 때 엔진 준비 중에 yt-dlp를 최신으로 받는 중. */
+    val engineUpdating = MutableStateFlow(false)
+    val downloadRepository = DownloadRepository()
+    val settingsRepository = SettingsRepository(appContext)
+    val cookieStore = CookieStore(appContext)
+    val workRoot = File(appContext.filesDir, "work")
+    val appUpdater = AppUpdater(appContext)
+    val appUpdate = MutableStateFlow<AppUpdateState>(AppUpdateState.None)
+}
