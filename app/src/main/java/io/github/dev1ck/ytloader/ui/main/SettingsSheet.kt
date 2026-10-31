@@ -155,7 +155,8 @@ fun SettingsSheet(state: MainUiState, viewModel: MainViewModel, onDismiss: () ->
 @Composable
 private fun SettingsCard(content: @Composable () -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        // 시트 배경이 surfaceContainerLow라 카드는 한 단계 밝게 해야 구분된다.
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         shape = MaterialTheme.shapes.large,
         modifier = Modifier.fillMaxWidth(),
     ) { content() }

@@ -253,7 +253,7 @@ private fun TitlePreviewRow(state: MainUiState) {
             modifier = Modifier.padding(start = 4.dp),
         )
         is TitleState.Loaded -> Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -268,14 +268,14 @@ private fun TitlePreviewRow(state: MainUiState) {
                         },
                     ),
                     null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
                         playlistTitle ?: preview.info.title,
                         style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -283,7 +283,7 @@ private fun TitlePreviewRow(state: MainUiState) {
                         Text(
                             stringResource(R.string.title_playlist),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
