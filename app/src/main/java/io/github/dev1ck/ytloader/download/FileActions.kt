@@ -28,14 +28,17 @@ object FileActions {
     }
 
     /**
-     * 파일 앱에서 저장 폴더를 연다. 시스템 파일 앱(DocumentsUI)이 폴더 문서 URI를 받으면 그 폴더로,
-     * 받는 앱이 없으면 다운로드 화면으로. 둘 다 없으면 null.
+     * 파일 앱에서 저장 폴더를 연다. 시스템 파일 앱(DocumentsUI)이 있으면 그 앱을 직접 지정한다 —
+     * 삼성 기기에서는 상관없는 앱(예: DJI Ronin)도 폴더 열기를 받아 선택 창이 뜨기 때문이다.
+     * 폴더를 받는 앱이 없으면 다운로드 화면, 그것도 없으면 null.
      */
     fun folderIntent(context: Context, subDir: String?): Intent? {
         val pm = context.packageManager
         val folderUri = DocumentsContract.buildDocumentUri(EXTERNAL_STORAGE_AUTHORITY, ShareRules.folderDocumentId(subDir))
         val folder = Intent(Intent.ACTION_VIEW).setDataAndType(folderUri, DocumentsContract.Document.MIME_TYPE_DIR)
-        if (folder.resolveActivity(pm) != null) return folder
+        val handlers = pm.queryIntentActivities(folder, 0).map { it.activityInfo.packageName }
+        handlers.firstOrNull { it.endsWith(".documentsui") }?.let { return folder.setPackage(it) }
+        if (handlers.isNotEmpty()) return folder
         return Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).takeIf { it.resolveActivity(pm) != null }
     }
 

@@ -403,7 +403,9 @@ Downloads로 통일한다. 음악·동영상 앱은 Download 폴더도 스캔한
     "primary:Download/YTLoader[/하위]")`, 타입 `vnd.android.document/directory` → 없으면 `ACTION_VIEW_DOWNLOADS`)
     Intent를 만든다. 화면·완료 알림·설정 시트가 같은 함수를 쓴다. 규칙(문서 ID, 공유 MIME, 공통 하위 폴더)은
     순수 `ShareRules`. 폴더 Intent를 미리 확인하려고 매니페스트에 `<queries>`(VIEW 디렉터리, VIEW_DOWNLOADS) 추가.
-    [확인 필요] 삼성 "내 파일"이 폴더 열기를 받는지 실기기 확인 (에뮬레이터는 시스템 파일 앱으로 열림).
+    실기기(SM-S948N) 확인: 삼성 "내 파일"은 폴더 열기를 받지 않고(다운로드 화면만), 시스템 파일 앱(documentsui)과
+    DJI Ronin이 받는다. 기본으로는 시스템 파일 앱이 열리지만, 다른 기기에서 선택 창이 뜨지 않도록
+    처리 앱 중 `*.documentsui`가 있으면 그 패키지를 직접 지정한다.
   - 앱 아이콘: `docs/design/icon/`의 원본(GPT 생성)에서 투명 전경을 밀도별
     `mipmap-*/ic_launcher_foreground.png`(108dp 기준, 글리프 82% 축소·중앙 정렬)로 만들고,
     배경은 그라데이션 벡터 `drawable/ic_launcher_background.xml`, 단색 테마 아이콘은 같은 전경.
